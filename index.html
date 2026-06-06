@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CAR PLAY</title></title>
+    <title>EGORKIN DEV v23.3</title>
     
+    <!-- Карты Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
@@ -85,7 +86,7 @@
             position: relative; z-index: 2;
             display: flex; flex-direction: column;
             padding: 18px 24px;
-            border: 1.5px solid var(--border);
+            border: none; /* УБРАНА ОБВОДКА ВОКРУГ */
             border-radius: 28px;
             box-shadow: var(--frame-shadow);
             background: rgba(255, 255, 255, 0.01);
@@ -99,7 +100,7 @@
         
         [data-theme="day"] .ui-scale-container {
             background: rgba(0, 0, 0, 0.01);
-            border: 1.5px solid rgba(0, 0, 0, 0.07);
+            border: none; /* УБРАНА ОБВОДКА ВОКРУГ ДЛЯ ДНЕВНОЙ ТЕМЫ */
         }
 
         .header { 
@@ -151,8 +152,9 @@
         .neon-tach { filter: var(--neon-rpm); transition: filter 0.3s; }
         .shift-flash { filter: drop-shadow(0 0 30px #ff3b30) brightness(1.6) !important; }
 
+        /* ОКНО КАРТЫ СДЕЛАНО БОЛЬШЕ ПОД РАЗМЕР НОВЫХ КОЛЕЦ */
         .map-hole {
-            position: absolute; width: 72%; height: 72%; border-radius: 50%;
+            position: absolute; width: 78%; height: 78%; border-radius: 50%;
             overflow: hidden; z-index: 1; border: 2px solid var(--border);
         }
 
@@ -239,6 +241,7 @@
 
 <div class="ui-scale-container" id="globalUiWrapper">
 
+    <!-- Верхняя консоль -->
     <div class="header" id="topHeader">
         <div class="logo">EGORKIN <span>DEV</span></div>
         
@@ -260,13 +263,15 @@
         <div id="clock" style="font-weight: 700; font-size: 16px; min-width: 45px; text-align: right;">21:40</div>
     </div>
 
+    <!-- Основной Дашборд -->
     <div class="dashboard">
         
+        <!-- Спидометр (Радиус увеличен до 91) -->
         <div class="gauge-container">
             <svg class="gauge-svg neon-speed" id="speedSvgRing" viewBox="0 0 200 200">
-                <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4" stroke-dasharray="2 6" transform="rotate(140 100 100)"/>
-                <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="5" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
-                <circle id="speedFill" cx="100" cy="100" r="85" fill="none" stroke="var(--accent)" stroke-width="7" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: stroke-dasharray 0.1s linear, stroke 0.3s"/>
+                <circle cx="100" cy="100" r="91" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4" stroke-dasharray="2 6" transform="rotate(140 100 100)"/>
+                <circle cx="100" cy="100" r="91" fill="none" stroke="var(--border)" stroke-width="5" stroke-dasharray="430 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
+                <circle id="speedFill" cx="100" cy="100" r="91" fill="none" stroke="var(--accent)" stroke-width="7" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: stroke-dasharray 0.1s linear, stroke 0.3s"/>
             </svg>
             <div class="central-display">
                 <div class="val" id="speedNum">0</div>
@@ -274,6 +279,7 @@
             </div>
         </div>
 
+        <!-- Центральный информационный блок -->
         <div class="center-stack">
             <div class="card" style="height: 68px;">
                 <div>
@@ -291,6 +297,7 @@
                 </div>
             </div>
 
+            <!-- Изолированный OBDII-блок -->
             <div class="obd-scroll-box" id="obdScrollContainer">
                 <div class="obd-internal-grid">
                     <div class="stat-item">
@@ -321,12 +328,13 @@
             </div>
         </div>
 
+        <!-- Тахометр (Радиус увеличен до 91) + Встроенная карта -->
         <div class="gauge-container">
             <div id="mapGaugeSlot" class="map-hole"></div>
             <svg class="gauge-svg neon-tach" id="tachSvgRing" viewBox="0 0 200 200" style="z-index: 5; pointer-events: none;">
-                <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4" stroke-dasharray="1 5" transform="rotate(140 100 100)"/>
-                <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="5" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
-                <circle id="rpmFill" cx="100" cy="100" r="85" fill="none" stroke="var(--red)" stroke-width="7" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: stroke-dasharray 0.1s linear"/>
+                <circle cx="100" cy="100" r="91" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4" stroke-dasharray="1 5" transform="rotate(140 100 100)"/>
+                <circle cx="100" cy="100" r="91" fill="none" stroke="var(--border)" stroke-width="5" stroke-dasharray="430 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
+                <circle id="rpmFill" cx="100" cy="100" r="91" fill="none" stroke="var(--red)" stroke-width="7" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: stroke-dasharray 0.1s linear"/>
             </svg>
             <div class="gear-overlay-display" id="gearContainer">
                 <div class="gear-val" id="gearNum">TEST</div>
@@ -335,6 +343,7 @@
         </div>
     </div>
 
+    <!-- Зафиксированный нижний футер -->
     <div class="footer">
         <div>Пробег: 142,833 км</div>
         <div id="trip">Поездка: 0.0 км</div>
@@ -376,7 +385,6 @@
         });
     }
 
-    // Применение масштаба (Теперь отрабатывает корректно)
     function applyGlobalScale() {
         const wrapper = document.getElementById('globalUiWrapper');
         wrapper.style.transform = `scale(${globalPageScale})`;
@@ -418,7 +426,6 @@
         L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${styleName}/{z}/{x}/{y}{r}.png`).addTo(mapGaugeInstance);
     }
 
-    // Мультиплатформенный кроссбраузерный Полноэкранный режим
     function toggleWebFullscreen(e) {
         e.stopPropagation();
         const docEl = document.documentElement;
@@ -433,7 +440,6 @@
         }
     }
 
-    // Тест стрелок (Needle Sweep)
     function runDashboardStartupTest() {
         const startTime = performance.now();
         const duration = 2400; 
@@ -511,6 +517,13 @@
         globalGpsMarkerBg = L.marker(moscowCenter, { icon: navIcon }).addTo(mapBgInstance);
         globalGpsMarkerGauge = L.marker(moscowCenter, { icon: navIcon }).addTo(mapGaugeInstance);
 
+        // ЖЕСТКАЯ СИНХРОНИЗАЦИЯ: Фоновая карта следует за мини-картой при ручном перемещении
+        mapGaugeInstance.on('move', () => {
+            if(mapBgInstance) {
+                mapBgInstance.setView(mapGaugeInstance.getCenter(), mapGaugeInstance.getZoom(), { animate: false });
+            }
+        });
+
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(position => {
                 if (isStartupTesting) return; 
@@ -519,8 +532,7 @@
                 const lng = position.coords.longitude;
                 const pArray = [lat, lng];
 
-                mapBgInstance.setView(pArray);
-                mapGaugeInstance.setView(pArray);
+                mapGaugeInstance.setView(pArray); // Обновляем мини-карту (а фоновая подтянется автоматически из события 'move')
                 globalGpsMarkerBg.setLatLng(pArray);
                 globalGpsMarkerGauge.setLatLng(pArray);
 
@@ -601,11 +613,12 @@
             document.getElementById('gearNum').innerText = displayGear;
         }
 
-        const speedOffset = (currentSpeedKmh / 220) * 400;
+        // Заполнение шкал адаптировано под радиус 91 (коэффициент 413)
+        const speedOffset = (currentSpeedKmh / 220) * 413;
         document.getElementById('speedFill').style.strokeDasharray = `${speedOffset} 600`;
         document.getElementById('speedNum').innerText = Math.round(currentSpeedKmh);
 
-        const rpmOffset = (currentRpm / 8000) * 400;
+        const rpmOffset = (currentRpm / 8000) * 413;
         document.getElementById('rpmFill').style.strokeDasharray = `${rpmOffset} 600`;
 
         document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -617,12 +630,11 @@
         initDualMapSystem();
         liveRenderEngine();
         
-        // РАЗБЛОКИРОВКА МАСШТАБА: убираем CSS-анимацию после ее завершения, чтобы освободить inline transform
         const wrapper = document.getElementById('globalUiWrapper');
         wrapper.addEventListener('animationend', (e) => {
             if (e.animationName === 'powerOnIgnition') {
                 wrapper.style.animation = 'none';
-                wrapper.style.transform = `scale(${globalPageScale})`; // Принудительно фиксируем исходный стейт
+                wrapper.style.transform = `scale(${globalPageScale})`; 
             }
         });
 
