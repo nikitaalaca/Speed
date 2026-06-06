@@ -3,554 +3,440 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CarPlay Premium Dashboard Pro</title>
+    <title>CarPlay Ultimate Pro v14.9 (Navi Edition)</title>
     
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <style>
         :root {
-            --bg-black: #050507;
-            --panel-bg: rgba(22, 22, 26, 0.75);
-            --panel-border: rgba(255, 255, 255, 0.08);
-            --apple-blue: #0a84ff;
-            --apple-red: #ff453a;
-            --text-white: #ffffff;
-            --text-muted: #8e8e93;
-            --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            --bg-pure: #000000;
+            --panel-glass: rgba(22, 22, 28, 0.85);
+            --border-line: rgba(255, 255, 255, 0.08);
+            --color-blue: #0a84ff;
+            --color-red: #ff453a;
+            --color-yandex: #ffcc00;
+            --text-main: #ffffff;
+            --text-dark: #8e8e93;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
-            background-color: var(--bg-black); color: var(--text-white);
-            font-family: var(--font-main);
+            width: 100vw; height: 100vh; overflow: hidden;
+            background: var(--bg-pure); color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
             display: flex; flex-direction: column;
-            padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+            padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
         }
 
-        /* Фоновое неоновое свечение (Ambient Light) */
-        .ambient-glow {
-            position: absolute; width: 60vh; height: 60vh; filter: blur(140px);
-            opacity: 0.12; z-index: -1; pointer-events: none;
+        /* Верхняя панель */
+        .top-bar { height: 50px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10; }
+        .brand-logo { font-size: 20px; font-weight: 700; }
+        .brand-logo span { color: var(--color-blue); }
+        .sys-actions { display: flex; gap: 10px; }
+        .pill-btn {
+            background: var(--panel-glass); border: 1px solid var(--border-line);
+            color: var(--text-main); padding: 8px 16px; border-radius: 18px;
+            font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
         }
-        .glow-left { top: -10%; left: -10%; background: var(--apple-blue); }
-        .glow-right { bottom: -10%; right: -10%; background: var(--apple-red); }
+        .pill-btn.connected { background: var(--color-blue); border-color: transparent; box-shadow: 0 0 15px rgba(10,132,255,0.4); }
+        .clock-display { font-size: 18px; font-weight: 700; min-width: 50px; text-align: right; }
 
-        /* Верхний статус-бар */
-        .top-bar {
-            height: 60px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
-        }
-        .brand { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-        .brand span { color: var(--apple-blue); }
-        
-        .nav-controls { display: flex; gap: 12px; }
-        .action-pill {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            color: var(--text-white); padding: 10px 20px; border-radius: 20px;
-            font-size: 14px; font-weight: 600; cursor: pointer; backdrop-filter: blur(20px);
-            transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
-        }
-        .action-pill.active {
-            background: var(--apple-blue); border-color: transparent; box-shadow: 0 0 15px rgba(10, 132, 255, 0.4);
-        }
-        .action-pill:active { transform: scale(0.96); }
-        .system-time { font-size: 20px; font-weight: 700; min-width: 60px; text-align: right; }
+        /* Сетка рабочей области */
+        .main-viewport { flex: 1; display: grid; gap: 16px; min-height: 0; margin-bottom: 8px; }
 
-        /* Основной контейнер сетки */
-        .dashboard-grid {
-            flex: 1; display: grid; gap: 24px; margin: 10px 0; align-items: center; overflow: hidden;
-        }
-
-        /* --------------------------------------------
-           ГОРИЗОНТАЛЬНЫЙ РЕЖИМ (Планшет / Магнитола)
-        -------------------------------------------- */
         @media (orientation: landscape) {
-            .dashboard-grid { grid-template-columns: 1.2fr 1fr 1.2fr; }
-            .portrait-layout { display: none !important; }
+            .main-viewport { grid-template-columns: 1fr 1.4fr 1fr; align-items: center; }
+            .portrait-only { display: none !important; }
         }
 
-        /* --------------------------------------------
-           ВЕРТИКАЛЬНЫЙ РЕЖИМ (Смартфон в держателе)
-        -------------------------------------------- */
         @media (orientation: portrait) {
-            body { padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
-            .dashboard-grid { grid-template-columns: 1fr; grid-template-rows: auto; align-items: start; overflow-y: auto; }
-            .landscape-layout { display: none !important; }
-            
-            /* Стилизация скрытия нативных элементов под портрет как на скрине IMG_9474.png */
-            .portrait-gauges-row {
-                display: flex; justify-content: space-between; items-content: center; gap: 10px; height: 140px; margin-bottom: 10px;
-            }
-            .portrait-gauges-row .gauge-wrapper { height: 100%; aspect-ratio: 1/1; }
+            .main-viewport { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: stretch; }
+            .landscape-only { display: none !important; }
+            .portrait-gauges-header { display: flex; justify-content: space-between; gap: 12px; height: 110px; flex-shrink: 0; }
+            .portrait-gauges-header .gauge-wrapper { height: 100%; width: 48%; }
         }
 
-        /* Стилизация круглых шкал приборов */
-        .gauge-wrapper {
-            position: relative; width: 100%; display: flex; align-items: center; justify-content: center;
-        }
-        .gauge-svg { width: 100%; height: 100%; }
-        .gauge-bg-track { fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 6; }
-        .gauge-dynamic-fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.15s linear; }
-        .gauge-tick-line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1.5; }
-        .gauge-tick-text { fill: var(--text-muted); font-size: 9px; font-weight: 700; text-anchor: middle; }
+        /* Компоненты шкал */
+        .gauge-wrapper { position: relative; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
+        .gauge-svg { width: 100%; height: 100%; max-width: 240px; max-height: 240px; position: relative; z-index: 3; background: transparent !important; }
+        .track-bg { fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 5; }
+        .track-fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.15s ease; }
+        .gauge-tick { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1.5; }
+        .gauge-label { fill: var(--text-dark); font-size: 9px; font-weight: 700; text-anchor: middle; }
 
-        .gauge-center-data { position: absolute; text-align: center; display: flex; flex-direction: column; align-items: center; }
-        .value-display-big { font-size: 9vh; font-weight: 800; line-height: 0.9; letter-spacing: -2px; }
-        @media (orientation: portrait) { .value-display-big { font-size: 5vh; } }
-        .unit-display-sub { font-size: 1.6vh; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-top: 6px; letter-spacing: 0.5px; }
-
-        /* Центральный медиа- и дата-стек */
-        .center-dashboard-stack { display: flex; flex-direction: column; gap: 16px; height: 100%; justify-content: center; }
-
-        /* Премиальный Медиаплеер (Стиль Apple Music / Яндекс Музыка) */
-        .premium-player {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            border-radius: 24px; padding: 18px; backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
-            display: flex; gap: 18px; align-items: center; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        /* Информационный центр внутри круга */
+        .gauge-center-info { 
+            position: absolute; text-align: center; display: flex; flex-direction: column; 
+            align-items: center; z-index: 4; pointer-events: none;
+            background: rgba(0, 0, 0, 0.45); padding: 6px 12px; border-radius: 14px; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
         }
-        .media-artwork-container {
-            width: 90px; height: 90px; border-radius: 16px; overflow: hidden; position: relative;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5); flex-shrink: 0; background: #1c1c1e;
+        .val-num { font-size: clamp(32px, 6.5vh, 60px); font-weight: 800; line-height: 0.85; letter-spacing: -2px; }
+        .val-unit { font-size: 11px; color: var(--text-dark); font-weight: 700; text-transform: uppercase; margin-top: 4px; }
+
+        /* ИНТЕГРИРОВАННЫЙ КРУГЛЫЙ НАВИГАТОР ВНУТРИ ТАХОМЕТРА */
+        .gauge-map-overlay {
+            position: absolute;
+            width: 71%; height: 71%; /* Идеально вписывается внутрь шкал прибора */
+            border-radius: 50%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none; /* Карта не перехватывает жесты панели */
+            opacity: 0.6; /* Легкое затемнение карты, чтобы шкала тахометра читалась идеально */
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .media-artwork-container img { width: 100%; height: 100%; object-fit: cover; }
+        /* Скрываем элементы управления Leaflet для чистого UI */
+        .leaflet-control-container { display: none !important; }
+
+        /* Центр панели: Плеер + Параметры */
+        .center-layout-stack { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; justify-content: center; }
+
+        .native-media-card {
+            background: linear-gradient(135deg, #1c1c22 0%, #0d0d11 100%);
+            border: 1px solid var(--border-line);
+            border-radius: 20px; height: 115px; overflow: hidden; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+        .media-meta { display: flex; flex-direction: column; gap: 2px; }
+        .media-title { font-size: 16px; font-weight: 700; color: #ffffff; }
+        .media-subtitle { font-size: 11px; color: var(--color-yandex); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        /* Живой визуализатор трека */
-        .live-visualizer {
-            position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
-            top: 0; left: 0; display: flex; justify-content: center; align-items: center; gap: 3px; opacity: 0; transition: opacity 0.3s;
+        .media-action-link {
+            background: var(--color-yandex); color: #000000; font-weight: 700;
+            padding: 12px 20px; border-radius: 14px; font-size: 13px;
+            text-decoration: none; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 12px rgba(255,204,0,0.2); transition: 0.2s;
         }
-        .live-visualizer.playing { opacity: 1; }
-        .v-bar { width: 3px; height: 18px; background: #fff; border-radius: 2px; animation: soundWave 0.6s ease infinite alternate; }
-        @keyframes soundWave { 0% { transform: scaleY(0.2); } 100% { transform: scaleY(1.3); } }
+        .media-action-link:active { transform: scale(0.96); opacity: 0.9; }
 
-        .media-meta-controls { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-        .media-title { font-size: 22px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-        .media-artist { font-size: 14px; color: var(--text-muted); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        /* Интерактивный Скраббер Времени */
-        .scrubber-wrapper { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-        .scrubber-bar-bg { width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; position: relative; }
-        .scrubber-bar-fill { height: 100%; background: var(--text-white); border-radius: 3px; width: 0%; position: absolute; top: 0; left: 0; }
-        .time-stamps { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+        .eq-wave { display: flex; gap: 3px; align-items: flex-end; height: 24px; }
+        .eq-bar { width: 3px; height: 4px; background: var(--color-yandex); border-radius: 2px; animation: eqJump 0.6s ease infinite alternate; }
+        .eq-bar:nth-child(2) { animation-delay: 0.15s; }
+        .eq-bar:nth-child(3) { animation-delay: 0.35s; }
+        .eq-bar:nth-child(4) { animation-delay: 0.1s; }
+        @keyframes eqJump { 0% { height: 4px; } 100% { height: 24px; } }
 
-        /* Отрендеренные кнопки управления (SVG) */
-        .media-action-row { display: flex; gap: 24px; align-items: center; }
-        .media-btn { background: none; border: none; color: var(--text-white); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; }
-        .media-btn:active { transform: scale(0.85); }
-        .media-btn svg { fill: currentColor; width: 22px; height: 22px; }
-        
-        .media-btn.main-playback-toggle {
-            width: 44px; height: 44px; background: var(--text-white); color: var(--bg-black); border-radius: 50%; box-shadow: 0 4px 12px rgba(255,255,255,0.2);
+        /* Дашборд */
+        .telemetry-dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+        .tel-box {
+            background: var(--panel-glass); border: 1px solid var(--border-line);
+            border-radius: 16px; padding: 12px; display: flex; flex-direction: column; justify-content: center;
         }
-        .media-btn.main-playback-toggle svg { width: 20px; height: 20px; }
+        .tel-title { font-size: 10px; font-weight: 800; color: var(--text-dark); text-transform: uppercase; margin-bottom: 2px; }
+        .tel-digit { font-size: clamp(18px, 3vh, 26px); font-weight: 700; }
+        .tel-digit span { font-size: 14px; color: var(--text-dark); font-weight: 500; }
 
-        /* Сетка Датчиков Телеметрии Бортового Компьютера */
-        .telemetry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .telemetry-card {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            border-radius: 20px; padding: 16px; backdrop-filter: blur(20px);
-        }
-        .tel-label { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
-        .tel-value { font-size: 28px; font-weight: 700; display: flex; align-items: baseline; gap: 4px; }
-        .tel-value span { font-size: 16px; color: var(--text-muted); font-weight: 500; }
-
-        /* Нижний блок системной информации */
-        .global-summary-footer {
-            height: 44px; display: flex; justify-content: space-between; align-items: center;
-            border-top: 1px solid rgba(255,255,255,0.04); font-size: 13px; color: var(--text-muted); font-weight: 600; padding: 0 8px;
+        .summary-footer {
+            height: 35px; display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: var(--text-dark); font-weight: 600; flex-shrink: 0;
         }
     </style>
 </head>
 <body>
 
-<!-- Аудио-ядро системы -->
-<audio id="core-audio-engine" crossorigin="anonymous" preload="auto"></audio>
-
-<div class="ambient-glow glow-left"></div>
-<div class="ambient-glow glow-right"></div>
-
-<!-- Шапка -->
 <div class="top-bar">
-    <div class="brand">Car<span>Play</span> PRO</div>
-    <div class="nav-controls">
-        <button class="action-pill" id="bleConnectTrigger">Bluetooth OBDII</button>
-        <button class="action-pill" id="fullscreenTrigger">Экран</button>
+    <div class="brand-logo">Car<span>Play</span> PRO</div>
+    <div class="sys-actions">
+        <button class="pill-btn" id="connectBleBtn">Bluetooth OBDII</button>
+        <button class="pill-btn" onclick="toggleFullscreen()">Экран</button>
     </div>
-    <div class="system-time" id="liveClockDisplay">12:00</div>
+    <div class="clock-display" id="realtimeClock">00:00</div>
 </div>
 
-<!-- Центральная рабочая область -->
-<div class="dashboard-grid">
+<div class="main-viewport">
 
-    <!-- [LANDSCAPE] Спидометр -->
-    <div class="gauge-wrapper landscape-layout">
-        <svg class="gauge-svg" viewBox="0 0 200 200" id="speedometerSvg"></svg>
-        <div class="gauge-center-data">
-            <div class="value-display-big" id="speedValueText">0</div>
-            <div class="unit-display-sub">км/ч</div>
+    <div class="gauge-wrapper landscape-only">
+        <svg class="gauge-svg" viewBox="0 0 200 200" id="speedGaugeLnd"></svg>
+        <div class="gauge-center-info">
+            <div class="val-num" id="speedTextLnd">0</div>
+            <div class="val-unit">км/ч</div>
         </div>
     </div>
 
-    <!-- [PORTRAIT] Верхний сдвоенный ряд приборов -->
-    <div class="portrait-layout portrait-gauges-row">
+    <div class="portrait-only portrait-gauges-header">
         <div class="gauge-wrapper">
-            <svg class="gauge-svg" viewBox="0 0 200 200" id="speedometerSvgPortrait"></svg>
-            <div class="gauge-center-data">
-                <div class="value-display-big" id="speedValueTextPortrait">0</div>
-                <div class="unit-display-sub">км/ч</div>
+            <svg class="gauge-svg" viewBox="0 0 200 200" id="speedGaugePrt"></svg>
+            <div class="gauge-center-info">
+                <div class="val-num" id="speedTextPrt">0</div>
+                <div class="val-unit">км/ч</div>
             </div>
         </div>
         <div class="gauge-wrapper">
-            <svg class="gauge-svg" viewBox="0 0 200 200" id="tachometerSvgPortrait"></svg>
-            <div class="gauge-center-data">
-                <div class="value-display-big" id="gearValueTextPortrait" style="color:var(--apple-red)">P</div>
-                <div class="unit-display-sub">Передача</div>
+            <div id="mapPrt" class="gauge-map-overlay"></div>
+            <svg class="gauge-svg" viewBox="0 0 200 200" id="rpmGaugePrt"></svg>
+            <div class="gauge-center-info">
+                <div class="val-num" id="gearTextPrt" style="color:var(--color-red)">P</div>
+                <div class="val-unit">Передача</div>
             </div>
         </div>
     </div>
 
-    <!-- Медиаплеер и телеметрия -->
-    <div class="center-dashboard-stack">
-        
-        <!-- Кастомный Плеер -->
-        <div class="premium-player">
-            <div class="media-artwork-container">
-                <div class="live-visualizer" id="audioVisualizerBlock">
-                    <div class="v-bar" style="animation-delay: 0.1s"></div>
-                    <div class="v-bar" style="animation-delay: 0.4s"></div>
-                    <div class="v-bar" style="animation-delay: 0.2s"></div>
-                </div>
-                <img id="trackArtworkElement" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=150">
-            </div>
-            
-            <div class="media-meta-controls">
-                <div class="media-title" id="trackTitleElement">Комета</div>
-                <div class="media-artist" id="trackArtistElement">JONY</div>
-                
-                <div class="scrubber-wrapper">
-                    <div class="scrubber-bar-bg" id="audioScrubberTimeline">
-                        <div class="scrubber-bar-fill" id="audioScrubberProgress"></div>
-                    </div>
-                    <div class="time-stamps">
-                        <span id="timeElapsedElement">0:00</span>
-                        <span id="timeDurationElement">0:00</span>
-                    </div>
-                </div>
-
-                <div class="media-action-row">
-                    <button class="media-btn" onclick="mediaEngine.prevTrack()">
-                        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-                    </button>
-                    <button class="media-btn main-playback-toggle" onclick="mediaEngine.togglePlayback()">
-                        <div id="playbackBtnIconWrapper"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-                    </button>
-                    <button class="media-btn" onclick="mediaEngine.nextTrack()">
-                        <svg viewBox="0 0 24 24"><path d="m6 18 8.5-6L6 6zm9-12v12h2V6z"/></svg>
-                    </button>
+    <div class="center-layout-stack">
+        <div class="native-media-card">
+            <div class="media-meta">
+                <div class="media-subtitle">Яндекс Музыка</div>
+                <div class="media-title">Мой Плейлист Авто</div>
+                <div class="eq-wave" style="margin-top: 6px;">
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
+                    <div class="eq-bar"></div>
                 </div>
             </div>
+            <a href="https://music.yandex.ru/playlists/2111e2b6-587d-a600-2fea-54df7c314477" target="_blank" class="media-action-link">
+                <span>Включить</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </a>
         </div>
 
-        <!-- Телеметрия -->
-        <div class="telemetry-grid">
-            <div class="telemetry-card">
-                <div class="tel-label">Охлаждение</div>
-                <div class="tel-value" id="coolantValueDisplay">90 <span>°C</span></div>
+        <div class="telemetry-dashboard-grid">
+            <div class="tel-box">
+                <div class="tel-title">Охлаждение</div>
+                <div class="tel-digit" id="coolantVal">--<span> °C</span></div>
             </div>
-            <div class="telemetry-card">
-                <div class="tel-label">Вольтаж</div>
-                <div class="tel-value" id="voltageValueDisplay" style="color:var(--apple-blue)">14.2 <span>V</span></div>
+            <div class="tel-box">
+                <div class="tel-title">Вольтаж</div>
+                <div class="tel-digit" id="voltageVal" style="color:var(--color-blue)">--<span> V</span></div>
             </div>
-            <div class="telemetry-card">
-                <div class="tel-label">Масло</div>
-                <div class="tel-value" id="oilValueDisplay">98 <span>°C</span></div>
+            <div class="tel-box">
+                <div class="tel-title">Масло</div>
+                <div class="tel-digit" id="oilVal">--<span> °C</span></div>
             </div>
-            <div class="telemetry-card">
-                <div class="tel-label">Расход</div>
-                <div class="tel-value" id="consumptionValueDisplay">8.4 <span>л</span></div>
+            <div class="tel-box">
+                <div class="tel-title">Расход</div>
+                <div class="tel-digit" id="consumptionVal">8.4<span> л</span></div>
             </div>
         </div>
     </div>
 
-    <!-- [LANDSCAPE] Тахометр -->
-    <div class="gauge-wrapper landscape-layout">
-        <svg class="gauge-svg" viewBox="0 0 200 200" id="tachometerSvg"></svg>
-        <div class="gauge-center-data">
-            <div class="value-display-big" id="gearValueText" style="color:var(--apple-red)">P</div>
-            <div class="unit-display-sub">Передача</div>
+    <div class="gauge-wrapper landscape-only">
+        <div id="mapLnd" class="gauge-map-overlay"></div>
+        <svg class="gauge-svg" viewBox="0 0 200 200" id="rpmGaugeLnd"></svg>
+        <div class="gauge-center-info">
+            <div class="val-num" id="gearTextLnd" style="color:var(--color-red)">P</div>
+            <div class="val-unit">Передача</div>
         </div>
     </div>
 
 </div>
 
-<!-- Системный Футер -->
-<div class="global-summary-footer">
-    <div id="totalOdoDisplay">Пробег: 124,562 км</div>
-    <div id="tripOdoDisplay">Поездка: 14.5 км</div>
-    <div id="rangeOdoDisplay">Запас хода: 412 км</div>
+<div class="summary-footer">
+    <div id="totalOdo">Пробег: 124,562 км</div>
+    <div id="tripOdo">Поездка: 0.0 км</div>
+    <div id="rangeOdo">Запас хода: 412 км</div>
 </div>
 
 <script>
-    // --- Конфигурация Ресурсов Медиатеки ---
-    const mediaLibrary = [
-        { title: "Комета", artist: "JONY", art: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200", stream: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-        { title: "Где прошла ты", artist: "Кравц & Гио Пика", art: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=200", stream: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-        { title: "As It Was", artist: "Harry Styles", art: "https://images.unsplash.com/photo-1459749411177-042180ceea72?w=200", stream: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
-    ];
+    const carData = { speed: 0, rpm: 0, coolant: 90, voltage: 14.2, oil: 95, trip: 0.0, isConnected: false };
+    const obdCommands = ["010C\r", "010D\r", "0105\r"];
+    let currentCommandIndex = 0;
+    let rxBuffer = ""; 
+    let bleCharacteristic = null;
 
-    // --- Глобальное Состояние Системы ---
-    const obdSystemState = {
-        speed: 0,
-        rpm: 0,
-        coolant: 90,
-        voltage: 14.2,
-        oil: 98,
-        consumption: 8.4,
-        trip: 14.5,
-        bluetoothCharacteristic: null,
-        isBleConnected: false
-    };
+    // Глобальные переменные навигатора
+    let maps = {}, markers = {};
 
-    // --- Рендеринг Профессиональных Шкал Векторной Графики (SVG) ---
-    function renderVectorGauge(targetId, maxLimit, graduationStep, hexColor) {
-        const svgContainer = document.getElementById(targetId);
-        if (!svgContainer) return;
-        
-        const centerPoint = 100, scaleRadius = 82, arcStartAngle = 135, arcEndAngle = 405;
-        
-        // Математический расчет длины дуги для корректного отображения обводки
-        const circumference = 2 * Math.PI * scaleRadius;
-        const usefulArcLength = (arcEndAngle - arcStartAngle) / 360 * circumference;
-
-        let markupBuffer = `
-            <circle class="gauge-bg-track" cx="100" cy="100" r="${scaleRadius}" stroke-dasharray="${usefulArcLength} ${circumference}" stroke-dashoffset="0" transform="rotate(135 100 100)"/>
-            <circle id="${targetId}-dynamicFill" class="gauge-dynamic-fill" cx="100" cy="100" r="${scaleRadius}" stroke="${hexColor}" stroke-dasharray="0 ${circumference}" transform="rotate(135 100 100)"/>
+    function drawGauge(id, max, step, color) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const r = 82, len = 2 * Math.PI * r, arc = 0.75 * len;
+        let html = `
+            <circle class="track-bg" cx="100" cy="100" r="${r}" stroke-dasharray="${arc} ${len}" transform="rotate(135 100 100)"/>
+            <circle id="${id}-fill" class="track-fill" stroke="${color}" cx="100" cy="100" r="${r}" stroke-dasharray="0 ${len}" transform="rotate(135 100 100)"/>
         `;
-
-        for (let valueIterator = 0; valueIterator <= maxLimit; valueIterator += graduationStep) {
-            const currentAngle = arcStartAngle + (valueIterator / maxLimit) * (arcEndAngle - arcStartAngle);
-            const radianFactor = currentAngle * Math.PI / 180;
-            
-            const outerX = centerPoint + scaleRadius * Math.cos(radianFactor);
-            const outerY = centerPoint + scaleRadius * Math.sin(radianFactor);
-            const innerX = centerPoint + (scaleRadius - 6) * Math.cos(radianFactor);
-            const innerY = centerPoint + (scaleRadius - 6) * Math.sin(radianFactor);
-            
-            markupBuffer += `<line class="gauge-tick-line" x1="${innerX}" y1="${innerY}" x2="${outerX}" y2="${outerY}" />`;
-            
-            const labelX = centerPoint + (scaleRadius - 18) * Math.cos(radianFactor);
-            const labelY = centerPoint + (scaleRadius - 18) * Math.sin(radianFactor) + 3.5;
-            markupBuffer += `<text x="${labelX}" y="${labelY}" class="gauge-tick-text">${valueIterator}</text>`;
+        for (let v = 0; v <= max; v += step) {
+            const deg = 135 + (v / max) * 270;
+            const rad = deg * Math.PI / 180;
+            html += `<line class="gauge-tick" x1="${100+r*Math.cos(rad)}" y1="${100+r*Math.sin(rad)}" x2="${100+(r-5)*Math.cos(rad)}" y2="${100+(r-5)*Math.sin(rad)}" />`;
+            if(v % (step*2) === 0 || v === max) {
+                html += `<text x="${100+(r-16)*Math.cos(rad)}" y="${100+(r-16)*Math.sin(rad)+3}" class="gauge-label">${v}</text>`;
+            }
         }
-        svgContainer.innerHTML = markupBuffer;
+        el.innerHTML = html;
     }
 
-    // --- Архитектура Медиа-Плеера ---
-    const mediaEngine = {
-        currentTrackIndex: 0,
-        audioNode: document.getElementById('core-audio-engine'),
+    // Инициализация навигационных карт
+    function initNavigationSystem() {
+        const darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        const defaultCoords = [55.7558, 37.6173]; // Москва по дефолту до получения координат GPS
         
-        init: function() {
-            this.audioNode.src = mediaLibrary[this.currentTrackIndex].stream;
-            
-            this.audioNode.addEventListener('timeupdate', () => this.syncTimeline());
-            this.audioNode.addEventListener('durationchange', () => this.syncTimeline());
-            this.audioNode.addEventListener('ended', () => this.nextTrack());
-            
-            document.getElementById('audioScrubberTimeline').onclick = (e) => this.scrub(e);
-            this.applyMetaUpdate();
-        },
-        
-        togglePlayback: function() {
-            const playIconContainer = document.getElementById('playbackBtnIconWrapper');
-            const visualizer = document.getElementById('audioVisualizerBlock');
-            
-            if (this.audioNode.paused) {
-                this.audioNode.play().then(() => {
-                    playIconContainer.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-                    visualizer.classList.add('playing');
-                }).catch(() => alert("Кликните еще раз для подтверждения аудио-сессии в Bluefy."));
-            } else {
-                this.audioNode.pause();
-                playIconContainer.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
-                visualizer.classList.remove('playing');
+        const mapIds = ['mapLnd', 'mapPrt'];
+        mapIds.forEach(id => {
+            const container = document.getElementById(id);
+            if (container) {
+                const map = L.map(id, { zoomControl: false, attributionControl: false }).setView(defaultCoords, 16);
+                L.tileLayer(darkTilesUrl, { maxZoom: 18 }).addTo(map);
+                
+                // Элегантный маркер положения машины (белая точка в синем ореоле)
+                const marker = L.circleMarker(defaultCoords, {
+                    color: '#0a84ff', weight: 3, opacity: 0.8,
+                    fillColor: '#ffffff', fillOpacity: 1, radius: 5
+                }).addTo(map);
+                
+                maps[id] = map;
+                markers[id] = marker;
             }
-        },
-        
-        changeTrack: function(direction) {
-            this.currentTrackIndex = (this.currentTrackIndex + direction + mediaLibrary.length) % mediaLibrary.length;
-            const absoluteState = this.audioNode.paused;
-            this.audioNode.src = mediaLibrary[this.currentTrackIndex].stream;
-            this.applyMetaUpdate();
-            if (!absoluteState) { this.audioNode.play(); }
-        },
-        
-        nextTrack: function() { this.changeTrack(1); },
-        prevTrack: function() { this.changeTrack(-1); },
-        
-        applyMetaUpdate: function() {
-            const track = mediaLibrary[this.currentTrackIndex];
-            document.getElementById('trackTitleElement').innerText = track.title;
-            document.getElementById('trackArtistElement').innerText = track.artist;
-            document.getElementById('trackArtworkElement').src = track.art;
-        },
-        
-        syncTimeline: function() {
-            if (!this.audioNode.duration) return;
-            const completionPercent = (this.audioNode.currentTime / this.audioNode.duration) * 100;
-            document.getElementById('audioScrubberProgress').style.width = completionPercent + "%";
-            document.getElementById('timeElapsedElement').innerText = this.convertSecondsToReadable(this.audioNode.currentTime);
-            document.getElementById('timeDurationElement').innerText = this.convertSecondsToReadable(this.audioNode.duration);
-        },
-        
-        scrub: function(e) {
-            const timelineBounds = e.currentTarget.getBoundingClientRect();
-            const relativeClickRatio = (e.clientX - timelineBounds.left) / timelineBounds.width;
-            if (this.audioNode.duration) {
-                this.audioNode.currentTime = relativeClickRatio * this.audioNode.duration;
-            }
-        },
-        
-        convertSecondsToReadable: function(totalSeconds) {
-            if (isNaN(totalSeconds)) return "0:00";
-            const computedMinutes = Math.floor(totalSeconds / 60);
-            const remainingSeconds = Math.floor(totalSeconds % 60);
-            return `${computedMinutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-        }
-    };
+        });
 
-    // --- Bluetooth OBDII Драйвер Стека (Bluefy / iOS Web Bluetooth Web API) ---
-    async function executeBluetoothConnectionSequence() {
-        const connectionButton = document.getElementById('bleConnectTrigger');
+        // Запуск штатного трекера геолокации смартфона
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    
+                    for (let id in maps) {
+                        maps[id].setView([lat, lng], 16);
+                        markers[id].setLatLng([lat, lng]);
+                        // Принудительный рендеринг карты при смене ориентации экрана
+                        setTimeout(() => maps[id].invalidateSize(), 200);
+                    }
+                },
+                (err) => console.log("GPS Ошибка/Отказ доступа: ", err),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+    }
+
+    document.getElementById('connectBleBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('connectBleBtn');
         try {
-            connectionButton.innerText = "Поиск...";
-            
-            const obdHardwareDevice = await navigator.bluetooth.requestDevice({
+            btn.innerText = "Поиск...";
+            const device = await navigator.bluetooth.requestDevice({
                 filters: [{ services: [0xffe0] }, { namePrefix: 'OBD' }, { namePrefix: 'ELM' }],
                 optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb']
             });
-
-            const gattServerSession = await obdHardwareDevice.gatt.connect();
-            const obdPrimaryService = await gattServerSession.getPrimaryService(0xffe0);
-            const rxTxCharacteristic = await obdPrimaryService.getCharacteristic(0xffe1);
-
-            obdSystemState.bluetoothCharacteristic = rxTxCharacteristic;
-            obdSystemState.isBleConnected = true;
             
-            connectionButton.innerText = "Подключено";
-            connectionButton.classList.add('active');
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(0xffe0);
+            bleCharacteristic = await service.getCharacteristic(0xffe1);
             
-            // Нативный конвейер циклического опроса ЭБУ автомобиля
-            startObdQueryPipeline();
-        } catch (connectionError) {
-            console.error("OBD-Error: ", connectionError);
-            connectionButton.innerText = "Ошибка BT";
-            setTimeout(() => {
-                connectionButton.innerText = "Bluetooth OBDII";
-                connectionButton.classList.remove('active');
-            }, 2500);
+            await bleCharacteristic.startNotifications();
+            bleCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingObdBytes);
+            
+            carData.isConnected = true;
+            btn.innerText = "Подключено";
+            btn.classList.add('connected');
+            
+            setTimeout(() => sendCommandToCar("ATZ\r"), 200);
+            setTimeout(() => sendCommandToCar("ATE0\r"), 600);
+            setTimeout(() => nextObdQueryCycle(), 1000);
+
+        } catch (err) {
+            console.error(err);
+            btn.innerText = "Ошибка BT";
+            setTimeout(() => btn.innerText = "Bluetooth OBDII", 2500);
+        }
+    });
+
+    function sendCommandToCar(cmd) {
+        if (bleCharacteristic && carData.isConnected) {
+            bleCharacteristic.writeValue(new TextEncoder().encode(cmd)).catch(() => {});
         }
     }
 
-    function startObdQueryPipeline() {
-        const textEncoder = new TextEncoder();
-        setInterval(async () => {
-            if (obdSystemState.isBleConnected && obdSystemState.bluetoothCharacteristic) {
-                try {
-                    // Передача AT-команды запроса текущих оборотов двигателя (PID 010C)
-                    await obdSystemState.bluetoothCharacteristic.writeValue(textEncoder.encode("010C\r"));
-                } catch (writeError) {
-                    console.log("Потеря пакета данных при опросе: ", writeError);
-                }
+    function nextObdQueryCycle() {
+        if (!carData.isConnected) return;
+        sendCommandToCar(obdCommands[currentCommandIndex]);
+        currentCommandIndex = (currentCommandIndex + 1) % obdCommands.length;
+        setTimeout(nextObdQueryCycle, 300);
+    }
+
+    function handleIncomingObdBytes(event) {
+        const chunk = new TextDecoder().decode(event.target.value);
+        rxBuffer += chunk;
+        if (rxBuffer.includes(">")) {
+            cleanAndParseObdString(rxBuffer);
+            rxBuffer = ""; 
+        }
+    }
+
+    function cleanAndParseObdString(raw) {
+        let clean = raw.replace(/\s+/g, "").toUpperCase();
+        if (clean.includes("410C")) {
+            let idx = clean.indexOf("410C") + 4;
+            if (clean.length >= idx + 4) {
+                let a = parseInt(clean.substr(idx, 2), 16);
+                let b = parseInt(clean.substr(idx + 2, 2), 16);
+                if (!isNaN(a) && !isNaN(b)) carData.rpm = ((a * 256) + b) / 4;
             }
-        }, 400);
-    }
-
-    // --- Полноэкранный Режим Планшета ---
-    function toggleSystemFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-            document.exitFullscreen();
+        }
+        else if (clean.includes("410D")) {
+            let idx = clean.indexOf("410D") + 4;
+            if (clean.length >= idx + 2) {
+                let a = parseInt(clean.substr(idx, 2), 16);
+                if (!isNaN(a)) carData.speed = a;
+            }
+        }
+        else if (clean.includes("4105")) {
+            let idx = clean.indexOf("4105") + 4;
+            if (clean.length >= idx + 2) {
+                let a = parseInt(clean.substr(idx, 2), 16);
+                if (!isNaN(a)) carData.coolant = a - 40;
+            }
         }
     }
 
-    // --- Высокоточный Главный Анимационный Цикл Интерфейса (60 FPS) ---
-    function executeGlobalUiRefreshLoop() {
-        // Синхронизация системных часов смартфона/магнитолы
-        const calendarInstance = new Date();
-        document.getElementById('liveClockDisplay').innerText = calendarInstance.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        // Генерация реалистичной физики телеметрии для ДЕМО-режима (если адаптер не подключен)
-        if (!obdSystemState.isBleConnected) {
-            const timeWaveFactor = Date.now();
-            obdSystemState.rpm = 750 + Math.abs(Math.sin(timeWaveFactor / 3000)) * 4200;
-            obdSystemState.speed = (obdSystemState.rpm / 36);
-            obdSystemState.trip += (obdSystemState.speed / 240000);
-            
-            // Динамические изменения вспомогательных параметров
-            obdSystemState.coolant = 90 + Math.round(Math.sin(timeWaveFactor / 50000) * 2);
-            obdSystemState.oil = 96 + Math.round(Math.sin(timeWaveFactor / 60000) * 3);
-            obdSystemState.voltage = (14.1 + Math.sin(timeWaveFactor / 15000) * 0.15).toFixed(1);
-        }
-
-        // Вычисление лимитов длин дуг и рендеринг заполнения
-        const totalStrokeCircumference = 2 * Math.PI * 82;
-        const maxArcLengthFactor = 0.75; // 270 градусов
-
-        // Синхронизация спидометров
-        const finalSpeedFillValue = ((obdSystemState.speed / 220) * maxArcLengthFactor) * totalStrokeCircumference;
-        
-        const speedFillLandscape = document.getElementById('speedometerSvg-dynamicFill');
-        if (speedFillLandscape) speedFillLandscape.style.strokeDasharray = `${finalSpeedFillValue} ${totalStrokeCircumference}`;
-        
-        const speedFillPortrait = document.getElementById('speedometerSvgPortrait-dynamicFill');
-        if (speedFillPortrait) speedFillPortrait.style.strokeDasharray = `${finalSpeedFillValue} ${totalStrokeCircumference}`;
-        
-        const roundedSpeedValue = Math.round(obdSystemState.speed);
-        if (document.getElementById('speedValueText')) document.getElementById('speedValueText').innerText = roundedSpeedValue;
-        if (document.getElementById('speedValueTextPortrait')) document.getElementById('speedValueTextPortrait').innerText = roundedSpeedValue;
-
-        // Синхронизация тахометров
-        const finalRpmFillValue = ((obdSystemState.rpm / 8000) * maxArcLengthFactor) * totalStrokeCircumference;
-        
-        const rpmFillLandscape = document.getElementById('tachometerSvg-dynamicFill');
-        if (rpmFillLandscape) rpmFillLandscape.style.strokeDasharray = `${finalRpmFillValue} ${totalStrokeCircumference}`;
-        
-        const rpmFillPortrait = document.getElementById('tachometerSvgPortrait-dynamicFill');
-        if (rpmFillPortrait) rpmFillPortrait.style.strokeDasharray = `${finalRpmFillValue} ${totalStrokeCircumference}`;
-
-        // Расчет текущей виртуальной передачи КПП
-        const calculatedGear = obdSystemState.speed < 4 ? 'P' : Math.min(6, Math.ceil(obdSystemState.speed / 32));
-        if (document.getElementById('gearValueText')) document.getElementById('gearValueText').innerText = calculatedGear;
-        if (document.getElementById('gearValueTextPortrait')) document.getElementById('gearValueTextPortrait').innerText = calculatedGear;
-
-        // Вывод текстовых блоков телеметрии в реальном времени
-        document.getElementById('coolantValueDisplay').innerHTML = `${obdSystemState.coolant} <span>°C</span>`;
-        document.getElementById('oilValueDisplay').innerHTML = `${obdSystemState.oil} <span>°C</span>`;
-        document.getElementById('voltageValueDisplay').innerHTML = `${obdSystemState.voltage} <span>V</span>`;
-        document.getElementById('tripOdoDisplay').innerText = `Поездка: ${obdSystemState.trip.toFixed(1)} км`;
-
-        requestAnimationFrame(executeGlobalUiRefreshLoop);
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+        else document.exitFullscreen();
     }
 
-    // --- Точка Входа Системы При Загрузке Окна ---
+    function runUiEngine() {
+        const now = new Date();
+        document.getElementById('realtimeClock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (!carData.isConnected) {
+            const t = Date.now();
+            carData.rpm = 800 + Math.abs(Math.sin(t / 3500)) * 3200;
+            carData.speed = carData.rpm / 35;
+            carData.coolant = Math.round(90 + Math.sin(t / 50000));
+            carData.voltage = (14.1 + Math.sin(t / 10000) * 0.1).toFixed(1);
+            carData.trip += (carData.speed / 240000);
+        }
+
+        const len = 2 * Math.PI * 82;
+        const speedOffset = (carData.speed / 220) * 0.75 * len;
+        const rpmOffset = (carData.rpm / 8000) * 0.75 * len;
+
+        ['speedGaugeLnd-fill', 'speedGaugePrt-fill'].forEach(id => {
+            const el = document.getElementById(id); if(el) el.style.strokeDasharray = `${speedOffset} ${len}`;
+        });
+        ['rpmGaugeLnd-fill', 'rpmGaugePrt-fill'].forEach(id => {
+            const el = document.getElementById(id); if(el) el.style.strokeDasharray = `${rpmOffset} ${len}`;
+        });
+
+        const speedRound = Math.round(carData.speed);
+        const currentGear = carData.speed < 5 ? 'P' : Math.min(6, Math.ceil(carData.speed / 32));
+
+        if(document.getElementById('speedTextLnd')) document.getElementById('speedTextLnd').innerText = speedRound;
+        if(document.getElementById('speedTextPrt')) document.getElementById('speedTextPrt').innerText = speedRound;
+        if(document.getElementById('gearTextLnd')) document.getElementById('gearTextLnd').innerText = currentGear;
+        if(document.getElementById('gearTextPrt')) document.getElementById('gearTextPrt').innerText = currentGear;
+
+        document.getElementById('coolantVal').innerHTML = `${carData.coolant}<span> °C</span>`;
+        document.getElementById('oilVal').innerHTML = `${carData.coolant + 4}<span> °C</span>`; 
+        document.getElementById('voltageVal').innerHTML = `${carData.voltage}<span> V</span>`;
+        document.getElementById('tripOdo').innerText = `Поездка: ${carData.trip.toFixed(1)} км`;
+
+        requestAnimationFrame(runUiEngine);
+    }
+
+    // Слушатель смены ориентации экрана для корректного пересчета размеров навигации
+    window.addEventListener('resize', () => {
+        for (let id in maps) { setTimeout(() => maps[id].invalidateSize(), 300); }
+    });
+
     window.onload = () => {
-        // Инициализация графических шкал шлюзов
-        renderVectorGauge('speedometerSvg', 220, 20, 'var(--apple-blue)');
-        renderVectorGauge('tachometerSvg', 8, 1, 'var(--apple-red)');
+        drawGauge('speedGaugeLnd', 220, 20, 'var(--color-blue)');
+        drawGauge('rpmGaugeLnd', 8, 1, 'var(--color-red)');
+        drawGauge('speedGaugePrt', 220, 20, 'var(--color-blue)');
+        drawGauge('rpmGaugePrt', 8, 1, 'var(--color-red)');
         
-        renderVectorGauge('speedometerSvgPortrait', 220, 20, 'var(--apple-blue)');
-        renderVectorGauge('tachometerSvgPortrait', 8, 1, 'var(--apple-red)');
-
-        // Старт медиа-серверов и анимационного цикла
-        mediaEngine.init();
-        document.getElementById('bleConnectTrigger').addEventListener('click', executeBluetoothConnectionSequence);
-        document.getElementById('fullscreenTrigger').addEventListener('click', toggleSystemFullscreen);
-        
-        executeGlobalUiRefreshLoop();
+        initNavigationSystem(); // Запускаем карты и GPS
+        runUiEngine();
     };
 </script>
 </body>
