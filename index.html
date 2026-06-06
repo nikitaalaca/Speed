@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CarPlay</title>
+    <title>CAR PLAY</title></title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -71,11 +71,11 @@
             pointer-events: none;
         }
 
-        /* ЭФФЕКТ ПЛАВНОГО РАЗЖИГАНИЯ СИСТЕМЫ (Имитация пуска двигателя) */
+        /* ЭФФЕКТ ПЛАВНОГО РАЗЖИГАНИЯ СИСТЕМЫ */
         @keyframes powerOnIgnition {
             0% { opacity: 0; filter: brightness(0.1) saturate(0.5); transform: scale(0.98); }
             35% { opacity: 0.6; filter: brightness(0.7); }
-            45% { opacity: 0.3; filter: brightness(0.4); } /* Реалистичное падение напряжения при старте */
+            45% { opacity: 0.3; filter: brightness(0.4); } 
             65% { opacity: 0.9; filter: brightness(1.2) saturate(1.1); }
             100% { opacity: 1; filter: brightness(1) saturate(1); transform: scale(1); }
         }
@@ -240,7 +240,7 @@
 <div class="ui-scale-container" id="globalUiWrapper">
 
     <div class="header" id="topHeader">
-        <div class="logo">EGORKIN<span>DEV</span></div>
+        <div class="logo">EGORKIN <span>DEV</span></div>
         
         <div class="controls">
             <div class="mode-selector">
@@ -345,7 +345,7 @@
 <script>
     let isDayMode = false;
     let isObdActive = false; 
-    let isStartupTesting = true; // Флаг текущего теста стрелок при запуске
+    let isStartupTesting = true; 
     
     let currentSpeedKmh = 0; 
     let currentRpm = 0;
@@ -376,6 +376,7 @@
         });
     }
 
+    // Применение масштаба (Теперь отрабатывает корректно)
     function applyGlobalScale() {
         const wrapper = document.getElementById('globalUiWrapper');
         wrapper.style.transform = `scale(${globalPageScale})`;
@@ -417,20 +418,25 @@
         L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${styleName}/{z}/{x}/{y}{r}.png`).addTo(mapGaugeInstance);
     }
 
+    // Мультиплатформенный кроссбраузерный Полноэкранный режим
     function toggleWebFullscreen(e) {
         e.stopPropagation();
         const docEl = document.documentElement;
-        if (!document.fullscreenElement) {
-            (docEl.requestFullscreen || docEl.webkitRequestFullscreen || (() => {})).call(docEl);
+        const isFull = document.fullscreenElement || document.webkitFullscreenElement;
+
+        if (!isFull) {
+            if (docEl.requestFullscreen) docEl.requestFullscreen();
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
         } else {
-            (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
     }
 
-    // Алгоритмическая процедура Needle Sweep (Тест стрелок)
+    // Тест стрелок (Needle Sweep)
     function runDashboardStartupTest() {
         const startTime = performance.now();
-        const duration = 2400; // Продолжительность теста в мс
+        const duration = 2400; 
 
         function animateTest(now) {
             const elapsed = now - startTime;
@@ -438,26 +444,21 @@
 
             if (progress < 1) {
                 let wave;
-                // Фаза 1: Разгон до максимума (первые 45% времени)
                 if (progress < 0.45) {
                     let p = progress / 0.45;
                     wave = Math.sin(p * Math.PI / 2); 
                 } 
-                // Фаза 2: Удержание пиковых значений (между 45% и 55%)
                 else if (progress < 0.55) {
                     wave = 1.0;
                 } 
-                // Фаза 3: Плавный контролируемый возврат на ноль (последние 45% времени)
                 else {
                     let p = (progress - 0.55) / 0.45;
                     wave = 1.0 - Math.sin(p * Math.PI / 2);
                 }
 
-                // Расчет значений для рендеринга на основе волны теста
                 currentSpeedKmh = wave * 220;
                 currentRpm = wave * 8000;
 
-                // Красивая визуализация теста КПП в момент стрелок
                 if (progress < 0.25) document.getElementById('gearNum').innerText = '1';
                 else if (progress < 0.45) document.getElementById('gearNum').innerText = '3';
                 else if (progress < 0.60) document.getElementById('gearNum').innerText = '6';
@@ -466,7 +467,6 @@
 
                 requestAnimationFrame(animateTest);
             } else {
-                // Тест успешно завершен, передаем управление рабочим датчикам
                 isStartupTesting = false;
                 currentSpeedKmh = 0;
                 currentRpm = isObdActive ? 750 : 0;
@@ -513,7 +513,7 @@
 
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(position => {
-                if (isStartupTesting) return; // Игнорируем внешние данные во время теста
+                if (isStartupTesting) return; 
 
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
@@ -558,15 +558,12 @@
         }, 220);
     }
 
-    // Единый цикл прорисовки интерфейса (60 кадров/сек)
     function liveRenderEngine() {
         let displayGear = 'P';
 
         if (isStartupTesting) {
-            // Во время теста стрелок логика считывания OBD/GPS блокируется, выполняется только отрисовка данных из цикла runDashboardStartupTest
             displayGear = document.getElementById('gearNum').innerText;
         } else {
-            // Штатный режим после прохождения теста
             if (!isObdActive) {
                 currentRpm = 0;
                 displayGear = currentSpeedKmh > 0 ? 'D' : 'P';
@@ -604,7 +601,6 @@
             document.getElementById('gearNum').innerText = displayGear;
         }
 
-        // Отрисовка геометрии шкал по рассчитанным переменным
         const speedOffset = (currentSpeedKmh / 220) * 400;
         document.getElementById('speedFill').style.strokeDasharray = `${speedOffset} 600`;
         document.getElementById('speedNum').innerText = Math.round(currentSpeedKmh);
@@ -621,7 +617,15 @@
         initDualMapSystem();
         liveRenderEngine();
         
-        // Запускаем диагностический тест стрелок синхронно с разжиганием подсветки
+        // РАЗБЛОКИРОВКА МАСШТАБА: убираем CSS-анимацию после ее завершения, чтобы освободить inline transform
+        const wrapper = document.getElementById('globalUiWrapper');
+        wrapper.addEventListener('animationend', (e) => {
+            if (e.animationName === 'powerOnIgnition') {
+                wrapper.style.animation = 'none';
+                wrapper.style.transform = `scale(${globalPageScale})`; // Принудительно фиксируем исходный стейт
+            }
+        });
+
         setTimeout(() => {
             runDashboardStartupTest();
         }, 150);
