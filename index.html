@@ -3,501 +3,272 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CarPlay Ultimate Pro v15.5 (Vision Assist)</title>
+    <title>CarPlay Pro v16.0</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
         :root {
-            --bg-pure: #000000;
-            --panel-glass: rgba(22, 22, 28, 0.85);
-            --border-line: rgba(255, 255, 255, 0.08);
-            --color-blue: #0a84ff;
-            --color-red: #ff453a;
-            --color-yandex: #ffcc00;
-            --text-main: #ffffff;
-            --text-dark: #8e8e93;
+            /* Ночная тема (по умолчанию) */
+            --bg: #000000;
+            --card: rgba(28, 28, 32, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+            --text-dim: #8e8e93;
+            --accent: #0a84ff;
+            --red: #ff453a;
+            --yandex: #ffcc00;
+        }
+
+        [data-theme="day"] {
+            --bg: #f2f2f7;
+            --card: #ffffff;
+            --border: rgba(0, 0, 0, 0.05);
+            --text: #1c1c1e;
+            --text-dim: #636366;
+            --accent: #007aff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
         body {
             width: 100vw; height: 100vh; overflow: hidden;
-            background: var(--bg-pure); color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-            display: flex; flex-direction: column;
+            background: var(--bg); color: var(--text);
+            font-family: -apple-system, system-ui, sans-serif;
+            transition: background 0.4s ease;
             padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
         }
 
-        /* Верхняя панель */
-        .top-bar { height: 50px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10; }
-        .brand-logo { font-size: 20px; font-weight: 700; }
-        .brand-logo span { color: var(--color-blue); }
-        .sys-actions { display: flex; gap: 10px; }
-        .pill-btn {
-            background: var(--panel-glass); border: 1px solid var(--border-line);
-            color: var(--text-main); padding: 8px 16px; border-radius: 18px;
-            font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
-        }
-        .pill-btn.connected { background: var(--color-blue); border-color: transparent; box-shadow: 0 0 15px rgba(10,132,255,0.4); }
-        .clock-display { font-size: 18px; font-weight: 700; min-width: 50px; text-align: right; }
-
-        /* Сетка рабочей области */
-        .main-viewport { flex: 1; display: grid; gap: 16px; min-height: 0; margin-bottom: 8px; }
-
-        @media (orientation: landscape) {
-            .main-viewport { grid-template-columns: 1fr 1.4fr 1fr; align-items: center; }
-            .portrait-only { display: none !important; }
-        }
-
-        @media (orientation: portrait) {
-            .main-viewport { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: stretch; }
-            .landscape-only { display: none !important; }
-            .portrait-gauges-header { display: flex; justify-content: space-between; gap: 12px; height: 110px; flex-shrink: 0; }
-            .portrait-gauges-header .gauge-wrapper { height: 100%; width: 48%; }
-        }
-
-        /* Компоненты шкал */
-        .gauge-wrapper { position: relative; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
-        .gauge-svg { width: 100%; height: 100%; max-width: 240px; max-height: 240px; position: relative; z-index: 3; background: transparent !important; }
-        .track-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 5; }
-        .track-fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.15s ease; }
-        .gauge-tick { stroke: rgba(255, 255, 255, 0.3); stroke-width: 1.5; }
-        .gauge-label { fill: #ffffff; font-size: 10px; font-weight: 700; text-anchor: middle; }
-
-        /* Контрастный центр шкал */
-        .gauge-center-info { 
-            position: absolute; text-align: center; display: flex; flex-direction: column; 
-            align-items: center; z-index: 4; pointer-events: none;
-            background: rgba(10, 10, 14, 0.88); padding: 8px 16px; border-radius: 14px; 
-            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .val-num { font-size: clamp(32px, 6.5vh, 60px); font-weight: 800; line-height: 0.85; letter-spacing: -2px; }
-        .val-unit { font-size: 11px; color: var(--text-dark); font-weight: 700; text-transform: uppercase; margin-top: 4px; }
-
-        /* Круглый навигатор */
-        .gauge-map-overlay {
-            position: absolute; width: 71%; height: 71%; border-radius: 50%;
-            overflow: hidden; z-index: 1; pointer-events: none; opacity: 0.85;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        .leaflet-control-container { display: none !important; }
-        .custom-nav-marker { background: none !important; border: none !important; }
-
-        /* Центр панели: Плеер + Знаки + Телеметрия */
-        .center-layout-stack { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; justify-content: center; }
-
-        .native-media-card {
-            background: linear-gradient(135deg, #1c1c22 0%, #0d0d11 100%);
-            border: 1px solid var(--border-line); border-radius: 20px; height: 90px; 
-            overflow: hidden; flex-shrink: 0; display: flex; align-items: center; 
-            justify-content: space-between; padding: 0 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        }
-        .media-meta { display: flex; flex-direction: column; gap: 2px; }
-        .media-title { font-size: 15px; font-weight: 700; color: #ffffff; }
-        .media-subtitle { font-size: 10px; color: var(--color-yandex); font-weight: 700; text-transform: uppercase; }
+        /* Шапка */
+        .header { height: 60px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .logo { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
+        .logo span { color: var(--accent); }
         
-        .media-action-link {
-            background: var(--color-yandex); color: #000000; font-weight: 700;
-            padding: 10px 16px; border-radius: 12px; font-size: 12px;
-            text-decoration: none; display: flex; align-items: center; gap: 6px;
+        .controls { display: flex; gap: 8px; }
+        .btn {
+            background: var(--card); border: 1px solid var(--border);
+            color: var(--text); padding: 10px 18px; border-radius: 20px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .btn-active { background: var(--accent); border-color: transparent; color: white; }
+
+        /* Основная сетка */
+        .dashboard {
+            display: grid; grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 20px; height: calc(100% - 110px); align-items: center;
         }
 
-        /* БЛОК ДОРОЖНЫХ ЗНАКОВ (ADAS) */
-        .adas-signs-container {
-            background: rgba(20, 20, 25, 0.6);
-            border: 1px solid var(--border-line);
-            border-radius: 20px; height: 95px; flex-shrink: 0;
-            display: flex; align-items: center; justify-content: space-around;
-            padding: 10px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-            box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
+        /* Шкалы */
+        .gauge-container { position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; }
+        .gauge-svg { width: 100%; height: 100%; transform: rotate(-10deg); }
+        
+        .map-hole {
+            position: absolute; width: 72%; height: 72%; border-radius: 50%;
+            overflow: hidden; z-index: 1; border: 2px solid var(--border);
         }
-        .adas-panel-title {
-            font-size: 10px; font-weight: 800; color: var(--text-dark);
-            text-transform: uppercase; letter-spacing: 1px; width: 60px; text-align: center;
+
+        .central-display {
+            position: absolute; z-index: 10; text-align: center;
+            background: var(--card); padding: 12px 20px; border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border);
         }
-        .road-sign-slot {
-            width: 65px; height: 65px; background: #ffffff; border-radius: 50%;
-            border: 7px solid var(--color-red); box-shadow: 0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.3);
+        .val { font-size: 54px; font-weight: 800; line-height: 1; }
+        .unit { font-size: 12px; color: var(--text-dim); font-weight: 700; margin-top: 4px; }
+
+        /* Центральная колонка (Выравнивание) */
+        .center-stack { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 440px; margin: 0 auto; }
+
+        .card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 24px; padding: 16px; 
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        /* ADAS */
+        .adas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .sign-circle {
+            width: 70px; height: 70px; background: white; border-radius: 50%;
+            border: 6px solid var(--red); display: flex; align-items: center; justify-content: center;
+            color: black; font-size: 30px; font-weight: 900; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .gps-status {
+            width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--accent);
             display: flex; align-items: center; justify-content: center;
-            color: #000000; font-weight: 900; font-size: 26px; font-family: "Arial Black", sans-serif;
-            position: relative; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: var(--accent); font-size: 12px; font-weight: 800; text-align: center;
         }
-        /* Вспомогательный знак (например, обгон запрещен) */
-        .road-sign-slot.secondary {
-            border-color: #d1d1d6; background: #1c1c22; color: #fff; font-size: 11px; text-transform: uppercase; text-align: center; font-family: sans-serif;
-        }
-        /* Анимация при смене знака скорости */
-        .sign-alert { animation: popSign 0.5s ease; }
-        @keyframes popSign { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* Встроенное скрытое превью для будущей обработки камеры */
-        #camPreview { display: none; width: 1px; height: 1px; }
-
-        /* Дашборд телеметрии */
-        .telemetry-dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; min-height: 0; }
-        .tel-box {
-            background: var(--panel-glass); border: 1px solid var(--border-line);
-            border-radius: 14px; padding: 10px; display: flex; flex-direction: column; justify-content: center;
+        /* Датчики */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stat-item {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 12px;
         }
-        .tel-title { font-size: 10px; font-weight: 800; color: var(--text-dark); text-transform: uppercase; }
-        .tel-digit { font-size: clamp(16px, 2.8vh, 22px); font-weight: 700; }
-        .tel-digit span { font-size: 12px; color: var(--text-dark); }
+        .stat-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; }
+        .stat-val { font-size: 20px; font-weight: 700; margin-top: 4px; }
 
-        .summary-footer {
-            height: 35px; display: flex; justify-content: space-between; align-items: center;
-            border-top: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: var(--text-dark); font-weight: 600; flex-shrink: 0;
+        /* Футер */
+        .footer {
+            height: 40px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 13px; font-weight: 600; color: var(--text-dim);
+            border-top: 1px solid var(--border);
         }
+
+        /* Анимация переключения темы */
+        .theme-transition { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
-<body>
+<body data-theme="dark">
 
-<div class="top-bar">
-    <div class="brand-logo">Car<span>Play</span> PRO</div>
-    <div class="sys-actions">
-        <button class="pill-btn" id="connectBleBtn">Bluetooth OBDII</button>
-        <button class="pill-btn" onclick="toggleFullscreen()">Экран</button>
+<div class="header">
+    <div class="logo">Car<span>Play</span> PRO</div>
+    <div class="controls">
+        <button class="btn" id="themeBtn" onclick="toggleTheme()">Ночь</button>
+        <button class="btn" id="connectBtn">OBDII</button>
+        <button class="btn" onclick="forceFullscreen()">Экран</button>
     </div>
-    <div class="clock-display" id="realtimeClock">00:00</div>
+    <div id="clock" style="font-weight: 700; font-size: 18px;">19:00</div>
 </div>
 
-<div class="main-viewport">
-
-    <div class="gauge-wrapper landscape-only">
-        <svg class="gauge-svg" viewBox="0 0 200 200" id="speedGaugeLnd"></svg>
-        <div class="gauge-center-info">
-            <div class="val-num" id="speedTextLnd">0</div>
-            <div class="val-unit">км/ч</div>
+<div class="dashboard">
+    <div class="gauge-container">
+        <svg class="gauge-svg" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="6" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
+            <circle id="speedFill" cx="100" cy="100" r="85" fill="none" stroke="var(--accent)" stroke-width="8" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: 0.3s"/>
+        </svg>
+        <div class="central-display">
+            <div class="val" id="speedNum">0</div>
+            <div class="unit">КМ/Ч</div>
         </div>
     </div>
 
-    <div class="portrait-only portrait-gauges-header">
-        <div class="gauge-wrapper">
-            <svg class="gauge-svg" viewBox="0 0 200 200" id="speedGaugePrt"></svg>
-            <div class="gauge-center-info">
-                <div class="val-num" id="speedTextPrt">0</div>
-                <div class="val-unit">км/ч</div>
+    <div class="center-stack">
+        <div class="card" style="height: 100px;">
+            <div>
+                <div style="font-size: 11px; color: var(--yandex); font-weight: 800;">ЯНДЕКС МУЗЫКА</div>
+                <div style="font-size: 18px; font-weight: 700;">Мой Плейлист Авто</div>
             </div>
-        </div>
-        <div class="gauge-wrapper">
-            <div id="mapPrt" class="gauge-map-overlay"></div>
-            <svg class="gauge-svg" viewBox="0 0 200 200" id="rpmGaugePrt"></svg>
-            <div class="gauge-center-info">
-                <div class="val-num" id="gearTextPrt" style="color:var(--color-red)">P</div>
-                <div class="val-unit">Передача</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="center-layout-stack">
-        <div class="native-media-card">
-            <div class="media-meta">
-                <div class="media-subtitle">Яндекс Музыка</div>
-                <div class="media-title">Мой Плейлист Авто</div>
-            </div>
-            <a href="https://music.yandex.ru/playlists/2111e2b6-587d-a600-2fea-54df7c314477" target="_blank" class="media-action-link">
-                <span>Включить</span>
-            </a>
+            <button class="btn btn-active" onclick="window.open('https://music.yandex.ru')">Включить</button>
         </div>
 
-        <div class="adas-signs-container">
-            <div class="adas-panel-title">Система ADAS</div>
-            
-            <div class="road-sign-slot" id="speedLimitSign">60</div>
-            
-            <div class="road-sign-slot secondary" id="infoSign" style="border: 4px solid #0a84ff; padding: 2px;">
-                <span style="font-size:9px; font-weight:bold; color:#0a84ff;">GPS ok</span>
+        <div class="card">
+            <div style="font-size: 12px; font-weight: 800; color: var(--text-dim);">СИСТЕМА<br>ADAS</div>
+            <div class="adas-grid">
+                <div class="sign-circle" id="signSpeed">60</div>
+                <div class="gps-status" id="gpsStatus">GPS<br>READY</div>
             </div>
         </div>
 
-        <div class="telemetry-dashboard-grid">
-            <div class="tel-box">
-                <div class="tel-title">Охлаждение</div>
-                <div class="tel-digit" id="coolantVal">--<span> °C</span></div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">Охлаждение</div>
+                <div class="stat-val"><span id="coolant">90</span>°C</div>
             </div>
-            <div class="tel-box">
-                <div class="tel-title">Вольтаж</div>
-                <div class="tel-digit" id="voltageVal" style="color:var(--color-blue)">--<span> V</span></div>
-            </div>
-            <div class="tel-box">
-                <div class="tel-title">Масло</div>
-                <div class="tel-digit" id="oilVal">--<span> °C</span></div>
-            </div>
-            <div class="tel-box">
-                <div class="tel-title">Расход</div>
-                <div class="tel-digit" id="consumptionVal">8.4<span> л</span></div>
+            <div class="stat-item">
+                <div class="stat-label">Вольтаж</div>
+                <div class="stat-val" style="color: var(--accent);"><span id="volt">14.1</span>V</div>
             </div>
         </div>
     </div>
 
-    <div class="gauge-wrapper landscape-only">
-        <div id="mapLnd" class="gauge-map-overlay"></div>
-        <svg class="gauge-svg" viewBox="0 0 200 200" id="rpmGaugeLnd"></svg>
-        <div class="gauge-center-info">
-            <div class="val-num" id="gearTextLnd" style="color:var(--color-red)">P</div>
-            <div class="val-unit">Передача</div>
+    <div class="gauge-container">
+        <div id="map" class="map-hole"></div>
+        <svg class="gauge-svg" viewBox="0 0 200 200" style="z-index: 5; pointer-events: none;">
+            <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="6" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
+            <circle id="rpmFill" cx="100" cy="100" r="85" fill="none" stroke="var(--red)" stroke-width="8" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: 0.3s"/>
+        </svg>
+        <div class="central-display" style="background: rgba(0,0,0,0.85);">
+            <div class="val" id="gearNum" style="color: var(--red);">P</div>
+            <div class="unit">ПЕРЕДАЧА</div>
         </div>
     </div>
-
 </div>
 
-<video id="camPreview" autoplay playsinline></video>
-
-<div class="summary-footer">
-    <div id="totalOdo">Пробег: 124,562 км</div>
-    <div id="tripOdo">Поездка: 0.0 км</div>
-    <div id="rangeOdo">Запас хода: 412 км</div>
+<div class="footer">
+    <div>Пробег: 142,833 км</div>
+    <div id="trip">Поездка: 0.0 км</div>
+    <div>Запас хода: 446 км</div>
 </div>
 
 <script>
-    const carData = { speed: 0, rpm: 0, coolant: 90, voltage: 14.2, oil: 95, trip: 0.0, isConnected: false };
-    const obdCommands = ["010C\r", "010D\r", "0105\r"];
-    let currentCommandIndex = 0;
-    let rxBuffer = ""; 
-    let bleCharacteristic = null;
+    let isDay = false;
+    let speed = 0;
+    let rpm = 0;
 
-    let maps = {}, markers = {};
-    let lastLimit = 60;
-
-    function drawGauge(id, max, step, color) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const r = 82, len = 2 * Math.PI * r, arc = 0.75 * len;
-        let html = `
-            <circle class="track-bg" cx="100" cy="100" r="${r}" stroke-dasharray="${arc} ${len}" transform="rotate(135 100 100)"/>
-            <circle id="${id}-fill" class="track-fill" stroke="${color}" cx="100" cy="100" r="${r}" stroke-dasharray="0 ${len}" transform="rotate(135 100 100)"/>
-        `;
-        for (let v = 0; v <= max; v += step) {
-            const deg = 135 + (v / max) * 270;
-            const rad = deg * Math.PI / 180;
-            html += `<line class="gauge-tick" x1="${100+r*Math.cos(rad)}" y1="${100+r*Math.sin(rad)}" x2="${100+(r-5)*Math.cos(rad)}" y2="${100+(r-5)*Math.sin(rad)}" />`;
-            if(v % (step*2) === 0 || v === max) {
-                html += `<text x="${100+(r-16)*Math.cos(rad)}" y="${100+(r-16)*Math.sin(rad)+3}" class="gauge-label">${v}</text>`;
-            }
-        }
-        el.innerHTML = html;
-    }
-
-    function initNavigationSystem() {
-        const colorTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-        const defaultCoords = [55.7558, 37.6173]; 
-        
-        const navArrowIcon = L.divIcon({
-            className: 'custom-nav-marker',
-            html: `<svg width="30" height="30" viewBox="0 0 24 24" style="fill: #0a84ff; filter: drop-shadow(0px 2px 5px rgba(0,0,0,0.6));"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
-        });
-
-        const mapIds = ['mapLnd', 'mapPrt'];
-        mapIds.forEach(id => {
-            const container = document.getElementById(id);
-            if (container) {
-                const map = L.map(id, { zoomControl: false, attributionControl: false }).setView(defaultCoords, 16);
-                L.tileLayer(colorTilesUrl, { maxZoom: 18 }).addTo(map);
-                const marker = L.marker(defaultCoords, { icon: navArrowIcon }).addTo(map);
-                maps[id] = map;
-                markers[id] = marker;
-            }
-        });
-
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(
-                (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    
-                    for (let id in maps) {
-                        maps[id].setView([lat, lng], 16);
-                        markers[id].setLatLng([lat, lng]);
-                        setTimeout(() => maps[id].invalidateSize(), 200);
-                    }
-                    // Симулируем интеллектуальное изменение знаков в зависимости от зоны
-                    updateRouteSpeedLimit(lat, lng);
-                },
-                (err) => console.log("GPS Init Error"),
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        }
-        
-        // Запрос камеры для систем ADAS (опционально, активирует поток данных)
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { document.getElementById('camPreview').srcObject = stream; })
-            .catch(err => console.log("Камера не используется или заблокирована"));
-    }
-
-    // Имитация работы дорожного ИИ-парсера знаков
-    function updateRouteSpeedLimit(lat, lng) {
-        // Логика: если скорость растет или координаты меняются, переключаем лимиты городов/трасс
-        let currentSpeed = carData.speed;
-        let targetLimit = 60;
-        
-        if (currentSpeed > 85) targetLimit = 110;
-        else if (currentSpeed > 55) targetLimit = 90;
-        else if (currentSpeed < 15) targetLimit = 40;
-        else targetLimit = 60;
-
-        if (targetLimit !== lastLimit) {
-            lastLimit = targetLimit;
-            const signBox = document.getElementById('speedLimitSign');
-            signBox.innerText = targetLimit;
-            // Добавляем эффект пульсации при изменении знака
-            signBox.classList.add('sign-alert');
-            setTimeout(() => signBox.classList.remove('sign-alert'), 600);
-            
-            // Предупреждение на второй инфо-знак, если летим с превышением
-            const infoBox = document.getElementById('infoSign');
-            if(currentSpeed > targetLimit) {
-                infoBox.style.borderColor = "var(--color-red)";
-                infoBox.innerHTML = `<span style="font-size:9px; font-weight:bold; color:var(--color-red); text-align:center;">⚠️<br>Сбрось!</span>`;
-            } else {
-                infoBox.style.borderColor = "var(--color-blue)";
-                infoBox.innerHTML = `<span style="font-size:9px; font-weight:bold; color:var(--color-blue);">GPS ok</span>`;
-            }
+    function toggleTheme() {
+        isDay = !isDay;
+        document.body.setAttribute('data-theme', isDay ? 'day' : 'dark');
+        document.getElementById('themeBtn').innerText = isDay ? 'День' : 'Ночь';
+        // Обновляем карту под тему
+        if(map) {
+            map.remove();
+            initMap();
         }
     }
 
-    document.getElementById('connectBleBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('connectBleBtn');
-        try {
-            btn.innerText = "Поиск...";
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [0xffe0] }, { namePrefix: 'OBD' }, { namePrefix: 'ELM' }],
-                optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb']
+    function forceFullscreen() {
+        const doc = window.document;
+        const docEl = doc.documentElement;
+        const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+        
+        if (requestFullScreen) {
+            requestFullScreen.call(docEl);
+        } else {
+            // Если API заблокировано, просто скрываем лишнее через CSS-класс
+            alert("Нажмите 'Поделиться' -> 'На экран Домой' для полного погружения");
+        }
+    }
+
+    let map;
+    function initMap() {
+        const style = isDay ? 'voyager' : 'dark_all';
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 15);
+        L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`).addTo(map);
+        
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(p => {
+                map.setView([p.coords.latitude, p.coords.longitude], 16);
+                updateSigns(p.coords.speed);
             });
-            
-            const server = await device.gatt.connect();
-            const service = await server.getPrimaryService(0xffe0);
-            bleCharacteristic = await service.getCharacteristic(0xffe1);
-            
-            await bleCharacteristic.startNotifications();
-            bleCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingObdBytes);
-            
-            carData.isConnected = true;
-            btn.innerText = "Подключено";
-            btn.classList.add('connected');
-            
-            setTimeout(() => sendCommandToCar("ATZ\r"), 200);
-            setTimeout(() => sendCommandToCar("ATE0\r"), 600);
-            setTimeout(() => nextObdQueryCycle(), 1000);
-
-        } catch (err) {
-            btn.innerText = "Ошибка BT";
-            setTimeout(() => btn.innerText = "Bluetooth OBDII", 2500);
-        }
-    });
-
-    function sendCommandToCar(cmd) {
-        if (bleCharacteristic && carData.isConnected) {
-            bleCharacteristic.writeValue(new TextEncoder().encode(cmd)).catch(() => {});
         }
     }
 
-    function nextObdQueryCycle() {
-        if (!carData.isConnected) return;
-        sendCommandToCar(obdCommands[currentCommandIndex]);
-        currentCommandIndex = (currentCommandIndex + 1) % obdCommands.length;
-        setTimeout(nextObdQueryCycle, 300);
+    function updateSigns(s) {
+        let limit = 60;
+        if (speed > 85) limit = 110;
+        else if (speed > 55) limit = 90;
+        document.getElementById('signSpeed').innerText = limit;
     }
 
-    function handleIncomingObdBytes(event) {
-        const chunk = new TextDecoder().decode(event.target.value);
-        rxBuffer += chunk;
-        if (rxBuffer.includes(">")) {
-            cleanAndParseObdString(rxBuffer);
-            rxBuffer = ""; 
-        }
+    function engine() {
+        // Симуляция для теста (если OBD не подключен)
+        const t = Date.now();
+        speed = 60 + Math.sin(t/2000) * 40;
+        rpm = 2000 + Math.abs(Math.sin(t/1000)) * 3000;
+
+        // Отрисовка Speed
+        const sDash = (speed / 220) * 400;
+        document.getElementById('speedFill').style.strokeDasharray = `${sDash} 600`;
+        document.getElementById('speedNum').innerText = Math.round(speed);
+
+        // Отрисовка RPM
+        const rDash = (rpm / 8000) * 400;
+        document.getElementById('rpmFill').style.strokeDasharray = `${rDash} 600`;
+        
+        // Передачи
+        const gear = speed < 5 ? 'P' : Math.ceil(speed / 25);
+        document.getElementById('gearNum').innerText = gear;
+
+        // Часы
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        requestAnimationFrame(engine);
     }
-
-    function cleanAndParseObdString(raw) {
-        let clean = raw.replace(/\s+/g, "").toUpperCase();
-        if (clean.includes("410C")) {
-            let idx = clean.indexOf("410C") + 4;
-            if (clean.length >= idx + 4) {
-                let a = parseInt(clean.substr(idx, 2), 16);
-                let b = parseInt(clean.substr(idx + 2, 2), 16);
-                if (!isNaN(a) && !isNaN(b)) carData.rpm = ((a * 256) + b) / 4;
-            }
-        }
-        else if (clean.includes("410D")) {
-            let idx = clean.indexOf("410D") + 4;
-            if (clean.length >= idx + 2) {
-                let a = parseInt(clean.substr(idx, 2), 16);
-                if (!isNaN(a)) carData.speed = a;
-            }
-        }
-        else if (clean.includes("4105")) {
-            let idx = clean.indexOf("4105") + 4;
-            if (clean.length >= idx + 2) {
-                let a = parseInt(clean.substr(idx, 2), 16);
-                if (!isNaN(a)) carData.coolant = a - 40;
-            }
-        }
-    }
-
-    function toggleFullscreen() {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
-        else document.exitFullscreen();
-    }
-
-    function runUiEngine() {
-        const now = new Date();
-        document.getElementById('realtimeClock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        if (!carData.isConnected) {
-            const t = Date.now();
-            carData.rpm = 800 + Math.abs(Math.sin(t / 3500)) * 5200;
-            carData.speed = carData.rpm / 42;
-            carData.coolant = Math.round(90 + Math.sin(t / 50000));
-            carData.voltage = (14.1 + Math.sin(t / 10000) * 0.1).toFixed(1);
-            carData.trip += (carData.speed / 240000);
-            
-            // Запускаем симуляцию знаков на демо-режиме
-            updateRouteSpeedLimit();
-        }
-
-        const len = 2 * Math.PI * 82;
-        const speedOffset = (carData.speed / 220) * 0.75 * len;
-        const rpmOffset = (carData.rpm / 8000) * 0.75 * len;
-
-        ['speedGaugeLnd-fill', 'speedGaugePrt-fill'].forEach(id => {
-            const el = document.getElementById(id); if(el) el.style.strokeDasharray = `${speedOffset} ${len}`;
-        });
-        ['rpmGaugeLnd-fill', 'rpmGaugePrt-fill'].forEach(id => {
-            const el = document.getElementById(id); if(el) el.style.strokeDasharray = `${rpmOffset} ${len}`;
-        });
-
-        const speedRound = Math.round(carData.speed);
-        const currentGear = carData.speed < 5 ? 'P' : Math.min(6, Math.ceil(carData.speed / 32));
-
-        if(document.getElementById('speedTextLnd')) document.getElementById('speedTextLnd').innerText = speedRound;
-        if(document.getElementById('speedTextPrt')) document.getElementById('speedTextPrt').innerText = speedRound;
-        if(document.getElementById('gearTextLnd')) document.getElementById('gearTextLnd').innerText = currentGear;
-        if(document.getElementById('gearTextPrt')) document.getElementById('gearTextPrt').innerText = currentGear;
-
-        document.getElementById('coolantVal').innerHTML = `${carData.coolant}<span> °C</span>`;
-        document.getElementById('oilVal').innerHTML = `${carData.coolant + 4}<span> °C</span>`; 
-        document.getElementById('voltageVal').innerHTML = `${carData.voltage}<span> V</span>`;
-        document.getElementById('tripOdo').innerText = `Поездка: ${carData.trip.toFixed(1)} км`;
-
-        requestAnimationFrame(runUiEngine);
-    }
-
-    window.addEventListener('resize', () => {
-        for (let id in maps) { setTimeout(() => maps[id].invalidateSize(), 300); }
-    });
 
     window.onload = () => {
-        drawGauge('speedGaugeLnd', 220, 20, 'var(--color-blue)');
-        drawGauge('rpmGaugeLnd', 8, 1, 'var(--color-red)');
-        drawGauge('speedGaugePrt', 220, 20, 'var(--color-blue)');
-        drawGauge('rpmGaugePrt', 8, 1, 'var(--color-red)');
-        
-        initNavigationSystem(); 
-        runUiEngine();
+        initMap();
+        engine();
     };
 </script>
 </body>
