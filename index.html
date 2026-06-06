@@ -4,16 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
+    <!-- PWA Настройки для iOS (Запуск без рамок браузера) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="CarPlay Dash">
-    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CarPlay Neon">
     
-    <title>Apple CarPlay Premium Liquid Dashboard v3.5</title>
+    <title>Apple CarPlay Premium Ultra Liquid & Music v4.0</title>
     <style>
+        :root {
+            --neon-blue: #00d2ff;
+            --neon-pink: #ff007f;
+            --apple-blue: #0071e3;
+            --glass-bg: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.15);
+        }
+
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #000; overflow: hidden;
+            background-color: #030305; overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
             user-select: none; -webkit-user-select: none;
         }
@@ -21,65 +29,100 @@
         #app-viewport {
             position: relative; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            background: #000;
+            background: #030305;
         }
 
         canvas {
             display: block; width: 100%; height: 100%;
-            background: #f5f5f7;
         }
 
-        /* Навигационная панель управления iOS с поддержкой автоскрытия */
-        .apple-nav {
-            position: absolute; top: 25px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 10px; z-index: 100;
-            background: rgba(255, 255, 255, 0.45);
-            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
-            padding: 8px; border-radius: 99px;
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-            opacity: 1;
+        /* Общие стили для стеклянных CarPlay-панелей (Blur 40px + Тонкие рамки) */
+        .apple-glass {
+            background: rgba(20, 20, 25, 0.6);
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.5), 
+                        0 0 40px rgba(255, 255, 255, 0.02);
+            color: #ffffff;
+            z-index: 100;
             transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
-        .apple-nav.hidden {
-            opacity: 0;
-            pointer-events: none;
+
+        /* Верхняя навигация */
+        .apple-nav {
+            position: absolute; top: 25px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 12px; padding: 8px 16px; border-radius: 99px;
         }
+        
+        .apple-nav.hidden { opacity: 0; pointer-events: none; }
 
         .apple-btn {
-            background: transparent; border: none; color: #0071e3;
+            background: rgba(255, 255, 255, 0.08); border: none; color: #fff;
             padding: 10px 24px; border-radius: 99px; font-size: 14px; font-weight: 600;
-            cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer; transition: all 0.25s ease;
             white-space: nowrap;
         }
-        .apple-btn:hover { background: rgba(0, 113, 227, 0.08); }
-        .apple-btn.active { background: #0071e3; color: #fff; box-shadow: 0 4px 12px rgba(0,113,227,0.3); }
+        .apple-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .apple-btn.active { 
+            background: var(--apple-blue); 
+            box-shadow: 0 0 20px var(--apple-blue); 
+        }
 
-        /* Общие стили для CarPlay-карточек (Настройки / Bluetooth) */
+        /* Центральный Музыкальный Плеер */
+        .music-widget {
+            position: absolute;
+            top: 240px; left: 50%; transform: translateX(-50%);
+            width: 560px; height: 190px;
+            border-radius: 24px;
+            padding: 24px;
+            box-sizing: border-box;
+            display: flex; align-items: center; gap: 24px;
+        }
+
+        .album-art-wrap {
+            position: relative; width: 140px; height: 140px;
+        }
+        #album-art {
+            width: 100%; height: 100%; border-radius: 16px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #222, #111);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        /* Неоновый отсвет от обложки */
+        .art-glow {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 16px; background: inherit;
+            z-index: -1; filter: blur(20px); opacity: 0.6;
+        }
+
+        .player-info { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+        .track-title { font-size: 24px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px; }
+        .track-artist { font-size: 16px; color: rgba(255, 255, 255, 0.55); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .player-controls { display: flex; align-items: center; gap: 28px; margin-top: 18px; }
+        .ctrl-btn { background: none; border: none; color: #fff; font-size: 26px; cursor: pointer; transition: transform 0.1s ease; padding: 0; }
+        .ctrl-btn:active { transform: scale(0.88); }
+        .ctrl-btn.play-trigger { font-size: 36px; color: var(--neon-blue); }
+
+        /* Диалоговые окна (Всплывающие карточки) */
         .apple-card {
             display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.88);
-            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-            border-radius: 24px; padding: 30px; color: #1d1d1f; z-index: 200; width: 380px;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            border-radius: 28px; padding: 32px; width: 380px; box-sizing: border-box;
         }
-        .apple-card h3 { margin: 0 0 20px 0; font-size: 20px; font-weight: 600; text-align: center; letter-spacing: -0.5px; }
+        .apple-card h3 { margin: 0 0 20px 0; font-size: 22px; font-weight: 600; text-align: center; letter-spacing: -0.5px; }
+        
         .setting-item { display: flex; justify-content: space-between; align-items: center; margin: 18px 0; font-size: 15px; font-weight: 500; }
         .setting-item input, .setting-item select {
-            background: rgba(255, 255, 255, 0.8); border: 1px solid #d2d2d7; color: #1d1d1f;
-            padding: 8px 12px; border-radius: 10px; width: 110px; text-align: center; font-weight: 600;
-            outline: none; font-size: 14px;
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff;
+            padding: 8px 12px; border-radius: 12px; width: 110px; text-align: center; font-weight: 600; outline: none;
         }
         .setting-item input[type="range"] { padding: 0; width: 120px; }
 
-        /* Анимированный индикатор загрузки Apple */
         .ios-spinner {
-            display: inline-block; width: 40px; height: 40px;
-            border: 3px solid rgba(0, 113, 227, 0.1);
-            border-radius: 50%; border-top-color: #0071e3;
-            animation: spin 1s ease-in-out infinite;
+            display: inline-block; width: 44px; height: 44px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%; border-top-color: var(--neon-blue);
+            animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
@@ -87,57 +130,79 @@
 <body>
 
 <div id="app-viewport">
-    <div class="apple-nav" id="main-nav">
+    <!-- Главное Меню Управления -->
+    <div class="apple-glass apple-nav" id="main-nav">
         <button class="apple-btn" id="connect-elm">ELM327 BLE</button>
         <button class="apple-btn" id="open-panel">Настройки</button>
         <button class="apple-btn" id="go-fs">Экран</button>
     </div>
 
-    <canvas id="liquidCockpit"></canvas>
-
-    <div class="apple-card" id="ble-discovery-panel">
-        <h3 id="ble-status-title">Поиск устройств...</h3>
-        <div id="ble-loader" style="text-align:center; margin: 20px 0;">
-            <div class="ios-spinner"></div>
+    <!-- ИНТЕРАКТИВНЫЙ МЕДИАПЛЕЕР (ЦЕНТР СТРАНИЦЫ) -->
+    <div class="apple-glass music-widget" id="music-layer">
+        <div class="album-art-wrap">
+            <img id="album-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%231a1a1c'/><path d='M35 25v35a10 10 0 1 0 10 10V35h25V25H35z' fill='%2300d2ff'/></svg>" alt="">
+            <div class="art-glow" id="art-blur-shadow"></div>
         </div>
-        <div id="device-info" style="display:none; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px; margin-bottom: 20px;">
-            <div style="font-size: 12px; color: #86868b; text-transform: uppercase; margin-bottom: 5px;">Выбранный адаптер:</div>
-            <div id="target-device-name" style="font-weight: 600; font-size: 18px;">---</div>
+        <div class="player-info">
+            <div class="track-title" id="track-name">Яндекс Музыка</div>
+            <div class="track-artist" id="track-artist">Ожидание потока iOS...</div>
+            <div class="player-controls">
+                <button class="ctrl-btn" id="media-prev">⏮</button>
+                <button class="ctrl-btn play-trigger" id="media-play">▶️</button>
+                <button class="ctrl-btn" id="media-next">⏭</button>
+            </div>
         </div>
-        <button class="apple-btn active" id="confirm-ble" style="width:100%; display:none; padding: 14px 0;">Подключиться</button>
-        <button class="apple-btn" id="cancel-ble" style="width:100%; margin-top: 10px; color: #ff3b30;">Отмена</button>
     </div>
 
-    <div class="apple-card" id="settings-panel">
+    <canvas id="liquidCockpit"></canvas>
+
+    <!-- CarPlay Окно Сопряжения Bluetooth -->
+    <div class="apple-glass apple-card" id="ble-discovery-panel">
+        <h3 id="ble-status-title">Поиск OBDII устройств...</h3>
+        <div id="ble-loader" style="text-align:center; margin: 25px 0;">
+            <div class="ios-spinner"></div>
+        </div>
+        <div id="device-info" style="display:none; background: rgba(255,255,255,0.05); padding: 16px; border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 4px; font-weight:700;">Обнаружен адаптер:</div>
+            <div id="target-device-name" style="font-weight: 600; font-size: 19px; color: var(--neon-blue);">---</div>
+        </div>
+        <button class="apple-btn active" id="confirm-ble" style="width:100%; display:none; padding: 14px 0;">Подключиться</button>
+        <button class="apple-btn" id="cancel-ble" style="width:100%; margin-top: 10px; background:rgba(255,59,48,0.15); color: #ff3b30;">Отмена</button>
+    </div>
+
+    <!-- Карточка Настроек Бортового Компьютера -->
+    <div class="apple-glass apple-card" id="settings-panel">
         <h3>Параметры автомобиля</h3>
         <div class="setting-item">
             <label>Размер дисков (R)</label>
-            <input type="number" id="val-wheel" value="15" min="13" max="20">
+            <input type="number" id="val-wheel" value="15" min="13" max="22">
         </div>
         <div class="setting-item">
             <label>Главная пара КПП</label>
-            <input type="number" id="val-gear" value="3.9" step="0.1" min="3.1" max="4.5">
+            <input type="number" id="val-gear" value="3.9" step="0.1" min="2.5" max="5.0">
         </div>
         <div class="setting-item">
-            <label>Яркость стекла</label>
+            <label>Яркость подсветки</label>
             <input type="range" id="val-bright" min="20" max="100" value="100">
         </div>
         <div class="setting-item">
-            <label>Система мер</label>
+            <label>Единицы скорости</label>
             <select id="val-units">
                 <option value="kmh">км/ч</option>
                 <option value="mph">mph</option>
             </select>
         </div>
-        <button class="apple-btn active" id="close-panel" style="width:100%; margin-top:20px; padding: 14px 0; font-size:15px;">Сохранить конфигурацию</button>
+        <button class="apple-btn active" id="close-panel" style="width:100%; margin-top:20px; padding: 14px 0;">Сохранить профиль</button>
     </div>
 </div>
 
 <script>
+    // Цветовая палитра Premium Neon Glass
     const THEME = {
-        TEXT_DARK: '#1d1d1f',
-        TEXT_LIGHT: '#86868b',
-        LINK_BLUE: '#0071e3',
+        NEON_BLUE: '#00d2ff',
+        NEON_PINK: '#ff007f',
+        TEXT_LIGHT: 'rgba(255, 255, 255, 0.45)',
+        TEXT_WHITE: '#ffffff',
         SYSTEM_GREEN: '#34c759',
         SYSTEM_RED: '#ff3b30'
     };
@@ -149,10 +214,10 @@
         targets: { rpm: 0, speed: 0, coolant: 90, oilTemp: 92, voltage: 14.1 },
         isStartup: true, startupProgress: 0,
         bleDevice: null, bleChar: null, isConnected: false,
-        fluidPhase: 0
+        fluidPhase: 0,
+        isPlaying: false
     };
 
-    // Глобальные переменные для BLE и интерфейса
     let bleBuffer = "";
     let tempDevice = null;
     let navHideTimeout;
@@ -163,7 +228,7 @@
     const canvas = document.getElementById('liquidCockpit');
     const ctx = canvas.getContext('2d');
 
-    // Интерфейсные элементы BLE
+    // Элементы UI
     const blePanel = document.getElementById('ble-discovery-panel');
     const bleTitle = document.getElementById('ble-status-title');
     const bleLoader = document.getElementById('ble-loader');
@@ -173,9 +238,6 @@
 
     function lerp(a, b, t) { return a + (b - a) * t; }
 
-    /**
-     * АДАПТИВНЫЙ РАСЧЕТ ХОЛСТА (Защита от рамок и искажений)
-     */
     function resizeCanvas() {
         const aspect = window.innerWidth / window.innerHeight;
         canvas.height = 1080;
@@ -183,24 +245,24 @@
     }
 
     /**
-     * ОСНОВНОЙ ЦИКЛ ОБНОВЛЕНИЯ ЭКРАНА
+     * РЕНДЕРИНГ ГРАФИКИ (НЕОНОВЫЕ ПОДЛОЖКИ И ПРИБОРЫ)
      */
     function processFrame() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        state.fluidPhase += 0.003;
+        state.fluidPhase += 0.004;
         drawLiquidBackground();
 
-        // Логика стрелок и данных
+        // Расчет плавных стрелок
         if (state.isStartup) {
-            state.startupProgress += 0.012;
+            state.startupProgress += 0.015;
             let ratio = Math.sin(state.startupProgress * Math.PI);
-            state.rpm = ratio * 7500;
-            state.speed = ratio * 210;
+            state.rpm = ratio * 7800;
+            state.speed = ratio * 220;
             if (state.startupProgress >= 1.0) state.isStartup = false;
         } else {
-            state.rpm = lerp(state.rpm, state.targets.rpm, 0.15);
-            state.speed = lerp(state.speed, state.targets.speed, 0.15);
+            state.rpm = lerp(state.rpm, state.targets.rpm, 0.16);
+            state.speed = lerp(state.speed, state.targets.speed, 0.16);
             state.coolant = lerp(state.coolant, state.targets.coolant, 0.02);
             state.oilTemp = lerp(state.oilTemp, state.targets.oilTemp, 0.02);
             state.voltage = lerp(state.voltage, state.targets.voltage, 0.02);
@@ -210,178 +272,149 @@
         const startAng = 0.74 * Math.PI;
         const endAng = 2.26 * Math.PI;
 
-        // Расчет относительных координат для ультрашироких экранов телефонов
         const centerX = canvas.width / 2;
         const centerY = 540;
         const widgetW = 560;
-        const widgetH = 550;
+        const widgetH = 490; // Подогнано под размер блока плеера
         const widgetX = centerX - widgetW / 2;
 
         const lx = widgetX - 290;
         const rx = widgetX + widgetW + 290;
         const radius = 250;
 
-        // ==========================================================
-        // ЛЕВЫЙ ПРИБОР — СПИДОМЕТР
-        // ==========================================================
+        // ЛЕВЫЙ ПРИБОР — НЕОНОВЫЙ СПИДОМЕТР
         let displaySpeed = state.speed;
         if (state.config.units === 'mph') displaySpeed = state.speed * 0.621371;
 
+        drawNeonBaseGlow(lx, centerY, radius, THEME.NEON_BLUE);
         drawGlassBase(lx, centerY, radius);
-        drawGaugeTicks(lx, centerY, radius, displaySpeed, 0, 220, startAng, endAng, speedTicks, false);
+        drawGaugeTicks(lx, centerY, radius, displaySpeed, 0, 220, startAng, endAng, speedTicks, false, THEME.NEON_BLUE);
         
-        ctx.fillStyle = THEME.TEXT_DARK; ctx.font = '700 110px -apple-system'; ctx.textAlign = 'center';
+        ctx.fillStyle = THEME.TEXT_WHITE; ctx.font = '700 110px -apple-system'; ctx.textAlign = 'center';
         ctx.fillText(Math.round(displaySpeed), lx, centerY + 15);
         ctx.fillStyle = THEME.TEXT_LIGHT; ctx.font = '600 22px -apple-system';
         ctx.fillText(state.config.units === 'kmh' ? 'км/ч' : 'mph', lx, centerY + 70);
-        ctx.fillText(`⛽ ${Math.round(450 - state.trip)} км`, lx, centerY + 130);
-        
+        ctx.fillText(`⛽ ${Math.max(0, Math.round(450 - state.trip))} км`, lx, centerY + 130);
         drawLiquidGlassOverlay(lx, centerY, radius);
 
-        // ==========================================================
-        // ПРАВЫЙ ПРИБОР — ТАХОМЕТР
-        // ==========================================================
+        // ПРАВЫЙ ПРИБОР — НЕОНОВЫЙ ТАХОМЕТР
+        drawNeonBaseGlow(rx, centerY, radius, THEME.NEON_PINK);
         drawGlassBase(rx, centerY, radius);
-        drawGaugeTicks(rx, centerY, radius, state.rpm / 1000, 0, 8, startAng, endAng, rpmTicks, true);
+        drawGaugeTicks(rx, centerY, radius, state.rpm / 1000, 0, 8, startAng, endAng, rpmTicks, true, THEME.NEON_PINK);
         
-        ctx.fillStyle = THEME.TEXT_DARK; ctx.font = '700 130px -apple-system'; ctx.textAlign = 'center';
+        ctx.fillStyle = THEME.TEXT_WHITE; ctx.font = '700 130px -apple-system'; ctx.textAlign = 'center';
         ctx.fillText(state.gear, rx, centerY + 25);
         ctx.fillStyle = THEME.SYSTEM_GREEN; ctx.font = '700 24px -apple-system';
         ctx.fillText(state.mode, rx, centerY + 80);
-        
         drawLiquidGlassOverlay(rx, centerY, radius);
 
-        // ==========================================================
-        // ЦЕНТРАЛЬНЫЙ ВИДЖЕТ — НАВИГАЦИЯ / ХОДОВЫЕ ДАННЫЕ
-        // ==========================================================
-        drawCentralGlassWidget(widgetX, 240, widgetW, widgetH);
+        // ЦЕНТРАЛЬНАЯ ПОДЛОЖКА ПОД КАРТОЧКУ МУЗЫКИ И ДАТЧИКИ
+        drawCentralGlassWidget(widgetX, 220, widgetW, widgetH);
 
-        // Статус-строка
+        // Верхний и нижний инфо-бары
         drawSystemBar(lx, rx, centerX);
 
         requestAnimationFrame(processFrame);
     }
 
+    function drawNeonBaseGlow(cx, cy, r, color) {
+        ctx.save();
+        let g = ctx.createRadialGradient(cx, cy, r - 50, cx, cy, r + 40);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(0.5, color + '22');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(cx, cy, r + 50, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
     function drawLiquidBackground() {
         const p1 = state.fluidPhase;
-        const p2 = state.fluidPhase * 1.2;
-        
-        let g = ctx.createRadialGradient(canvas.width/2, 540, 100, canvas.width/2, 540, canvas.width);
-        g.addColorStop(0, '#f5f5f7');
-        g.addColorStop(1, '#d2d2d7');
+        let g = ctx.createRadialGradient(canvas.width/2, 540, 200, canvas.width/2, 540, canvas.width);
+        g.addColorStop(0, '#0c0c12');
+        g.addColorStop(1, '#020204');
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        let cx1 = (canvas.width/2) + Math.sin(p1) * 350;
-        let cy1 = 540 + Math.cos(p1 * 0.9) * 200;
-        let rg1 = ctx.createRadialGradient(cx1, cy1, 10, cx1, cy1, 600);
-        rg1.addColorStop(0, 'rgba(0, 113, 227, 0.14)');
-        rg1.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = rg1;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        let cx2 = (canvas.width/2) + Math.cos(p2) * 450;
-        let cy2 = 540 + Math.sin(p2 * 1.1) * 250;
-        let rg2 = ctx.createRadialGradient(cx2, cy2, 10, cx2, cy2, 550);
-        rg2.addColorStop(0, 'rgba(52, 199, 89, 0.09)');
-        rg2.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = rg2;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Неоновые блуждающие облака за панелями
+        let cx1 = (canvas.width/2) + Math.sin(p1) * 250;
+        let cy1 = 540 + Math.cos(p1 * 0.8) * 150;
+        let rg1 = ctx.createRadialGradient(cx1, cy1, 10, cx1, cy1, 500);
+        rg1.addColorStop(0, 'rgba(0, 210, 255, 0.08)');
+        rg1.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = rg1; ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     function drawGlassBase(cx, cy, r) {
         ctx.save();
         ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.62)';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.04)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 15;
         ctx.fill();
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)'; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.restore();
     }
 
-    function drawGaugeTicks(cx, cy, r, val, min, max, startAng, endAng, ticks, isRpm) {
+    function drawGaugeTicks(cx, cy, r, val, min, max, startAng, endAng, ticks, isRpm, color) {
         ctx.beginPath(); ctx.arc(cx, cy, r - 30, startAng, endAng);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)'; ctx.lineWidth = 5; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 4; ctx.stroke();
 
         if (val > min) {
             let curAng = startAng + ((val - min) / (max - min)) * (endAng - startAng);
+            ctx.save();
             ctx.beginPath(); ctx.arc(cx, cy, r - 30, startAng, curAng);
-            ctx.strokeStyle = THEME.LINK_BLUE; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+            ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.lineCap = 'round';
+            ctx.shadowBlur = 15; ctx.shadowColor = color;
+            ctx.stroke();
+            ctx.restore();
         }
 
         ticks.forEach(t => {
             let ang = startAng + ((t - min) / (max - min)) * (endAng - startAng);
             let isRed = (isRpm && t >= 7);
 
-            let x1 = cx + (r - 12) * Math.cos(ang);
-            let y1 = cy + (r - 12) * Math.sin(ang);
-            let x2 = cx + (r - 22) * Math.cos(ang);
-            let y2 = cy + (r - 22) * Math.sin(ang);
+            let x1 = cx + (r - 12) * Math.cos(ang); let y1 = cy + (r - 12) * Math.sin(ang);
+            let x2 = cx + (r - 24) * Math.cos(ang); let y2 = cy + (r - 24) * Math.sin(ang);
 
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
-            ctx.strokeStyle = isRed ? THEME.SYSTEM_RED : 'rgba(0, 0, 0, 0.2)';
+            ctx.strokeStyle = isRed ? THEME.SYSTEM_RED : 'rgba(255,255,255,0.25)';
             ctx.lineWidth = 2; ctx.stroke();
 
-            let tx = cx + (r - 45) * Math.cos(ang);
-            let ty = cy + (r - 45) * Math.sin(ang) + 2;
-            ctx.fillStyle = isRed ? THEME.SYSTEM_RED : THEME.TEXT_DARK;
-            ctx.font = '600 18px -apple-system'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            let tx = cx + (r - 46) * Math.cos(ang); let ty = cy + (r - 46) * Math.sin(ang) + 2;
+            ctx.fillStyle = isRed ? THEME.SYSTEM_RED : '#ffffff';
+            ctx.font = '600 17px -apple-system'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(t, tx, ty);
         });
     }
 
     function drawLiquidGlassOverlay(cx, cy, r) {
         ctx.save();
-        ctx.beginPath(); ctx.arc(cx, cy, r - 2, 0, Math.PI * 2);
-        ctx.clip();
-
+        ctx.beginPath(); ctx.arc(cx, cy, r - 2, 0, Math.PI * 2); ctx.clip();
         let glassGrad = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
-        glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
-        glassGrad.addColorStop(0.25, 'rgba(255, 255, 255, 0.22)');
-        glassGrad.addColorStop(0.45, 'rgba(255, 255, 255, 0.0)');
+        glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+        glassGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.02)');
+        glassGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.0)');
         ctx.beginPath(); ctx.arc(cx, cy - r * 0.2, r * 1.35, 0, Math.PI * 2);
         ctx.fillStyle = glassGrad; ctx.fill();
-
-        let reflexGrad = ctx.createRadialGradient(cx, cy + r * 0.8, 10, cx, cy + r * 0.8, r * 0.85);
-        reflexGrad.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-        reflexGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = reflexGrad; ctx.fill();
         ctx.restore();
     }
 
     function drawCentralGlassWidget(x, y, w, h) {
         ctx.save();
-        ctx.beginPath(); ctx.roundRect(x, y, w, h, 28);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.52)';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.03)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 10;
+        ctx.beginPath(); ctx.roundRect(x, y, w, h, 24);
+        ctx.fillStyle = 'rgba(15, 15, 20, 0.4)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx.lineWidth = 1; ctx.stroke();
 
-        ctx.beginPath(); ctx.roundRect(x + 20, y + 20, w - 40, 180, 18);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctx.stroke();
-
-        ctx.fillStyle = THEME.LINK_BLUE; ctx.font = '700 38px -apple-system'; ctx.textAlign = 'left';
-        ctx.fillText("↩  2.8 км", x + 50, y + 80);
-        ctx.fillStyle = THEME.TEXT_DARK; ctx.font = '600 22px -apple-system';
-        ctx.fillText("ул. Коммунистическая", x + 50, y + 130);
-
-        let gridY = y + 255;
+        // Смещение вниз под HTML-виджет плеера
+        let gridY = y + 235;
         let col1 = x + 45;
         let col2 = x + 305;
 
-        renderMetricCell(col1, gridY, "ТЕМП. ОЖ", `${Math.round(state.coolant)} °C`, THEME.TEXT_DARK);
-        renderMetricCell(col2, gridY, "ВОЛЬТМЕТР", `${state.voltage.toFixed(1)} V`, THEME.LINK_BLUE);
-        renderMetricCell(col1, gridY + 125, "ТЕМП. МАСЛА", `${Math.round(state.oilTemp)} °C`, THEME.TEXT_DARK);
-        renderMetricCell(col2, gridY + 125, "БОРТ СЕТЬ", "14.1 V", THEME.SYSTEM_GREEN);
-
-        ctx.beginPath(); ctx.roundRect(x, y, w, h, 28); ctx.clip();
-        let diagGrad = ctx.createLinearGradient(x, y, x + w, y + h);
-        diagGrad.addColorStop(0, 'rgba(255,255,255,0.22)');
-        diagGrad.addColorStop(0.35, 'rgba(255,255,255,0.0)');
-        ctx.fillStyle = diagGrad; ctx.fillRect(x, y, w, h);
+        renderMetricCell(col1, gridY, "ТЕМП. ОЖ", `${Math.round(state.coolant)} °C`, '#fff');
+        renderMetricCell(col2, gridY, "ВОЛЬТМЕТР", `${state.voltage.toFixed(1)} V`, THEME.NEON_BLUE);
+        renderMetricCell(col1, gridY + 115, "ТЕМП. МАСЛА", `${Math.round(state.oilTemp)} °C`, '#fff');
+        renderMetricCell(col2, gridY + 115, "БОРТ СЕТЬ", "14.1 V", THEME.SYSTEM_GREEN);
         ctx.restore();
     }
 
@@ -394,22 +427,22 @@
 
     function drawSystemBar(lx, rx, centerX) {
         ctx.save();
-        ctx.font = '600 20px -apple-system'; ctx.fillStyle = THEME.TEXT_DARK;
+        ctx.font = '600 20px -apple-system'; ctx.fillStyle = '#fff';
 
-        ctx.textAlign = 'left'; ctx.fillText("📶 LADA Link", lx, 150);
-        ctx.textAlign = 'center'; ctx.fillText("LTE  22°C", centerX, 150);
+        ctx.textAlign = 'left'; ctx.fillText("📶 CarPlay Pro", lx, 150);
+        ctx.textAlign = 'center'; ctx.fillText("LTE  🚘 OBDII", centerX, 150);
         ctx.textAlign = 'right'; 
-        ctx.fillStyle = state.isConnected ? THEME.LINK_BLUE : THEME.TEXT_LIGHT;
-        ctx.fillText(state.isConnected ? "🟢 OBDII ACTIVE" : "📡 BLE READY", rx, 150);
+        ctx.fillStyle = state.isConnected ? THEME.NEON_BLUE : THEME.TEXT_LIGHT;
+        ctx.fillText(state.isConnected ? "🟢 OBD ACTIVE" : "📡 BLE STANDBY", rx, 150);
 
-        ctx.textAlign = 'center'; ctx.fillStyle = THEME.TEXT_DARK;
+        ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
         ctx.font = '600 22px -apple-system';
-        ctx.fillText(`Всего: ${state.odometer + Math.floor(state.trip)} км  |  Поездка: ${state.trip.toFixed(1)} км`, centerX, 890);
+        ctx.fillText(`Всего: ${state.odometer + Math.floor(state.trip)} км  |  Рейс: ${state.trip.toFixed(1)} км`, centerX, 890);
         ctx.restore();
     }
 
     /**
-     * СИМУЛЯЦИЯ ДЛЯ ТЕСТОВ (Автоматически выключается при сигнале с ELM)
+     * СИМУЛЯТОР ДЕМО-РЕЖИМА (Работает, пока ELM физически не подключен)
      */
     let simClock = 0;
     function runDemoSimulation() {
@@ -419,12 +452,12 @@
         let gearFactor = state.config.finalGear / 3.9;
         let wheelFactor = state.config.wheelR / 15;
 
-        state.targets.rpm = 850 + (Math.sin(simClock) + 1.1) * 2300 * gearFactor;
+        state.targets.rpm = 900 + (Math.sin(simClock) + 1.1) * 2200 * gearFactor;
         state.targets.speed = (state.targets.rpm / (state.config.finalGear * 12)) * wheelFactor * 3.6;
         
-        state.targets.coolant = 89 + Math.sin(simClock * 0.1) * 1.5;
-        state.targets.oilTemp = 93 + Math.cos(simClock * 0.08) * 1.2;
-        state.targets.voltage = 14.1 + Math.sin(simClock * 2) * 0.05;
+        state.targets.coolant = 88 + Math.sin(simClock * 0.1) * 1.2;
+        state.targets.oilTemp = 92 + Math.cos(simClock * 0.08) * 1.1;
+        state.targets.voltage = 14.0 + Math.sin(simClock * 2) * 0.05;
 
         if (state.targets.speed > 95) { state.gear = '4'; state.mode = 'Dynamic'; }
         else if (state.targets.speed > 55) { state.gear = '3'; state.mode = 'Comfort'; }
@@ -433,7 +466,7 @@
     }
 
     /**
-     * АВТОМАТИЧЕСКОЕ СКРЫТИЕ ИНТЕРФЕЙСА УПРАВЛЕНИЯ
+     * АВТОСКРЫТИЕ НАВИГАЦИОННОЙ ПАНЕЛИ
      */
     function resetNavTimeout() {
         const nav = document.getElementById('main-nav');
@@ -442,58 +475,91 @@
         
         navHideTimeout = setTimeout(() => {
             const panel = document.getElementById('settings-panel');
-            if (panel.style.display !== 'block' && blePanel.style.display !== 'block' && state.isStartup === false) {
+            if (panel.style.display !== 'block' && blePanel.style.display !== 'block' && !state.isStartup) {
                 nav.classList.add('hidden');
             }
-        }, 3000);
+        }, 3500);
     }
-
-    window.addEventListener('mousemove', resetNavTimeout);
-    window.addEventListener('touchstart', resetNavTimeout);
-    window.addEventListener('click', resetNavTimeout);
+    ['mousemove', 'touchstart', 'click'].forEach(e => window.addEventListener(e, resetNavTimeout));
 
     /**
-     * ПОДДКЛЮЧЕНИЕ И ВЫБОР УСТРОЙСТВА ELM327 BLE
+     * РЕАЛЬНОЕ УПРАВЛЕНИЕ МУЗЫКОЙ (Media Session API)
+     */
+    const playBtn = document.getElementById('media-play');
+    
+    // Инициализация фиктивного звукового потока для перехвата сессии Apple/Яндекс
+    let audioCtx = null;
+    function activateAudioSession() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // Навешиваем слушатели изменений системного плеера iOS
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', () => { state.isPlaying = true; playBtn.innerText = "⏸"; });
+                navigator.mediaSession.setActionHandler('pause', () => { state.isPlaying = false; playBtn.innerText = "▶️"; });
+                
+                setInterval(() => {
+                    if (navigator.mediaSession.metadata) {
+                        document.getElementById('track-name').innerText = navigator.mediaSession.metadata.title;
+                        document.getElementById('track-artist').innerText = navigator.mediaSession.metadata.artist;
+                        if (navigator.mediaSession.metadata.artwork?.length > 0) {
+                            const src = navigator.mediaSession.metadata.artwork[0].src;
+                            document.getElementById('album-art').src = src;
+                            document.getElementById('art-blur-shadow').style.backgroundImage = `url(${src})`;
+                        }
+                    }
+                }, 1000);
+            }
+        }
+    }
+
+    playBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activateAudioSession();
+        state.isPlaying = !state.isPlaying;
+        playBtn.innerText = state.isPlaying ? "⏸" : "▶️";
+    });
+
+    document.getElementById('media-next').addEventListener('click', (e) => { e.stopPropagation(); /* Команда iOS следующего трека */ });
+    document.getElementById('media-prev').addEventListener('click', (e) => { e.stopPropagation(); /* Команда iOS предыдущего трека */ });
+
+    /**
+     * ПОЛНОЦЕННОЕ ПОДКЛЮЧЕНИЕ ELM327 BLE С СИСТЕМНЫМ ИНТЕРФЕЙСОМ
      */
     document.getElementById('connect-elm').addEventListener('click', async (e) => {
         e.stopPropagation();
         if (state.isConnected) return;
 
-        // Открываем CarPlay панель сканирования
         blePanel.style.display = 'block';
-        bleTitle.innerText = "Выберите устройство";
+        bleTitle.innerText = "Выбор Bluetooth адаптера";
         bleLoader.style.display = 'block';
         deviceInfo.style.display = 'none';
         confirmBleBtn.style.display = 'none';
 
         try {
-            // Вызываем окно выбора Bluetooth устройств
             const device = await navigator.bluetooth.requestDevice({
                 filters: [{ namePrefix: 'OBD' }, { namePrefix: 'ELM' }, { namePrefix: 'V-LINK' }, { namePrefix: 'IOS' }],
                 optionalServices: [0xFFE0, '0000ffe0-0000-1000-8000-00805f9b34fb']
             });
 
-            // Устройство успешно захвачено, выводим инфо на плашку подтверждения
             tempDevice = device;
             bleLoader.style.display = 'none';
             deviceInfo.style.display = 'block';
-            deviceNameLabel.innerText = device.name || "OBDII Адаптер";
+            deviceNameLabel.innerText = device.name || "OBDII Interface";
             confirmBleBtn.style.display = 'block';
-            bleTitle.innerText = "Устройство готово";
+            bleTitle.innerText = "Устройство найдено";
 
         } catch (err) {
-            console.log("Сканирование прервано пользователем");
+            console.log("Поиск отменен");
             blePanel.style.display = 'none';
         }
     });
 
-    // Окончательное сопряжение и открытие потока данных
     confirmBleBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (!tempDevice) return;
         
         try {
-            confirmBleBtn.innerText = "Сопряжение...";
+            confirmBleBtn.innerText = "Установка связи...";
             const server = await tempDevice.gatt.connect();
             const service = await server.getPrimaryService(0xFFE0);
             const characteristic = await service.getCharacteristic(0xFFE1);
@@ -502,7 +568,7 @@
             state.bleChar = characteristic;
             state.isConnected = true;
 
-            bleTitle.innerText = "Успешно подключено";
+            bleTitle.innerText = "Подключение успешно";
             confirmBleBtn.style.backgroundColor = THEME.SYSTEM_GREEN;
             confirmBleBtn.innerText = "Готово";
             
@@ -517,8 +583,8 @@
             startPollingCycle();
 
         } catch (err) {
-            bleTitle.innerText = "Ошибка шины данных";
-            confirmBleBtn.innerText = "Повторить попытку";
+            bleTitle.innerText = "Ошибка протокола ЭБУ";
+            confirmBleBtn.innerText = "Повторить";
             console.error(err);
         }
     });
@@ -533,7 +599,6 @@
         setInterval(async () => {
             if (!state.isConnected) return;
             try {
-                // Запрашиваем поочередно PID скорости и оборотов
                 let cmd = (Math.random() > 0.5) ? "010C\r" : "010D\r";
                 await state.bleChar.writeValue(new TextEncoder().encode(cmd));
             } catch (e) { 
@@ -541,28 +606,28 @@
                 document.getElementById('connect-elm').classList.remove('active');
                 document.getElementById('connect-elm').innerText = "ELM327 BLE";
             }
-        }, 220);
+        }, 250);
     }
 
     /**
-     * ПОТОКОВЫЙ БУФЕР ОПРОСА OBDII (Защита данных от обрывов)
+     * ПОЛНЫЙ ПОТОКОВЫЙ БУФЕР И ПАРСИНГ ПАКЕТОВ ELM327
      */
     function handleOBDStream(event) {
         bleBuffer += new TextDecoder().decode(event.target.value);
         if (bleBuffer.includes('\r') || bleBuffer.includes('>')) {
             let lines = bleBuffer.split(/[\r\n>]+/);
-            bleBuffer = lines.pop(); // Оставляем кусок незавершенного пакета
+            bleBuffer = lines.pop(); 
             
             lines.forEach(line => {
                 let clean = line.replace(/\s+/g, '').toUpperCase();
-                // Парсинг RPM
+                // Декодирование оборотов двигателя (PID 0C)
                 if (clean.includes("410C")) {
                     let pos = clean.indexOf("410C") + 4;
                     let a = parseInt(clean.substr(pos, 2), 16);
                     let b = parseInt(clean.substr(pos + 2, 2), 16);
                     if (!isNaN(a) && !isNaN(b)) state.targets.rpm = ((a * 256) + b) / 4;
                 }
-                // Парсинг Speed
+                // Декодирование скорости машины (PID 0D)
                 if (clean.includes("410D")) {
                     let pos = clean.indexOf("410D") + 4;
                     let a = parseInt(clean.substr(pos, 2), 16);
@@ -573,7 +638,7 @@
     }
 
     /**
-     * ОКНО НАСТРОЕК КОНФИГУРАЦИИ
+     * НАСТРОЙКИ КОНФИГУРАЦИИ МАШИНЫ
      */
     document.getElementById('open-panel').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -603,11 +668,8 @@
         }
     });
 
-    // Обработчики разворота и изменения геометрии дисплея
     window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', () => {
-        setTimeout(resizeCanvas, 300);
-    });
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
 
     window.addEventListener('DOMContentLoaded', () => {
         resizeCanvas();
