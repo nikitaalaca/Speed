@@ -3,31 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CarPlay Pro v16.0</title>
+    <title>CarPlay Pro v21.0 - Drive Edition</title>
     
+    <!-- Карты Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
         :root {
-            /* Ночная тема (по умолчанию) */
-            --bg: #000000;
-            --card: rgba(28, 28, 32, 0.9);
-            --border: rgba(255, 255, 255, 0.1);
+            /* Базовая палитра Ночь */
+            --bg: #0c0c0e;
+            --card: rgba(22, 22, 28, 0.85);
+            --border: rgba(255, 255, 255, 0.08);
             --text: #ffffff;
-            --text-dim: #8e8e93;
+            --text-dim: #929297;
+            --yandex: #ffcc00;
+            --map-blur: brightness(0.35) blur(3px);
+            
+            /* Динамические цвета режимов (По умолчанию Comfort) */
             --accent: #0a84ff;
             --red: #ff453a;
-            --yandex: #ffcc00;
+            
+            /* Премиальные тени Ночь */
+            --frame-shadow: 0 30px 70px rgba(0, 0, 0, 0.8), inset 0 0 1px rgba(255,255,255,0.15);
+            --card-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            --speedo-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            
+            --neon-glow: drop-shadow(0 0 8px var(--accent));
+            --neon-rpm: drop-shadow(0 0 8px var(--red));
         }
 
+        /* Светлый режим (Исправления на основе IMG_9489.jpeg) */
         [data-theme="day"] {
             --bg: #f2f2f7;
-            --card: #ffffff;
-            --border: rgba(0, 0, 0, 0.05);
+            --card: rgba(255, 255, 255, 0.94);
+            --border: rgba(0, 0, 0, 0.06);
             --text: #1c1c1e;
-            --text-dim: #636366;
-            --accent: #007aff;
+            --text-dim: #68686d;
+            --map-blur: brightness(0.96) blur(2.5px);
+            
+            /* Мягкие рассеянные тени без грязи и черноты */
+            --frame-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+            --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.03);
+            
+            /* Кристально чистая равномерная тень для карточки скорости */
+            --speedo-shadow: 0 4px 20px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.02);
+            
+            --neon-glow: drop-shadow(0 0 4px rgba(0,0,0,0.05));
+            --neon-rpm: drop-shadow(0 0 4px rgba(0,0,0,0.05));
+        }
+
+        /* Цветовые профили стилей вождения (Drive Modes) */
+        body[data-mode="eco"] {
+            --accent: #34c759; /* Эко Зеленый */
+        }
+        body[data-mode="comfort"] {
+            --accent: #007aff; /* Классический Синий */
+        }
+        body[data-mode="sport"] {
+            --accent: #ff3b30; /* Спортивный Алый */
+            --red: #ff9500;    /* Отсечка смещается в оранжевый */
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -35,240 +70,509 @@
         body {
             width: 100vw; height: 100vh; overflow: hidden;
             background: var(--bg); color: var(--text);
-            font-family: -apple-system, system-ui, sans-serif;
-            transition: background 0.4s ease;
-            padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.3s ease;
         }
 
-        /* Шапка */
-        .header { height: 60px; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
-        .logo { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
-        .logo span { color: var(--accent); }
+        /* Задний фон (Карта-зеркало) */
+        #bg-map-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; filter: var(--map-blur); transition: filter 0.3s;
+            pointer-events: none;
+        }
+
+        /* Модернизированный защитный контур (Тонкое автомобильное стекло) */
+        .ui-scale-container {
+            width: calc(100vw - 24px); height: calc(100vh - 24px);
+            position: relative; z-index: 2;
+            display: flex; flex-direction: column;
+            padding: 18px 24px;
+            border: 1.5px solid var(--border);
+            border-radius: 28px;
+            box-shadow: var(--frame-shadow);
+            background: rgba(255, 255, 255, 0.01);
+            backdrop-filter: blur(4px);
+            transform-origin: center center;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        [data-theme="day"] .ui-scale-container {
+            background: rgba(0, 0, 0, 0.01);
+            border: 1.5px solid rgba(0, 0, 0, 0.07);
+        }
+
+        /* Верхняя панель */
+        .header { 
+            height: 50px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; 
+            transition: opacity 0.4s ease, transform 0.4s ease; opacity: 1; margin-bottom: 5px;
+        }
+        .header.hidden { opacity: 0; transform: translateY(-15px); pointer-events: none; }
         
-        .controls { display: flex; gap: 8px; }
+        .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+        .logo span { color: var(--accent); transition: color 0.3s; }
+        
+        .controls { display: flex; gap: 8px; z-index: 10; align-items: center; }
+        
+        /* Аккуратный блок выбора режимов движения (Segmented Control) */
+        .mode-selector {
+            display: flex; background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 2px; box-shadow: var(--card-shadow);
+        }
+        .mode-tab {
+            background: transparent; border: none; color: var(--text-dim);
+            padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 11px;
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .mode-tab.active[data-m="eco"] { background: #34c759; color: #fff; }
+        .mode-tab.active[data-m="comfort"] { background: #007aff; color: #fff; }
+        .mode-tab.active[data-m="sport"] { background: #ff3b30; color: #fff; }
+
         .btn {
             background: var(--card); border: 1px solid var(--border);
-            color: var(--text); padding: 10px 18px; border-radius: 20px;
-            font-size: 13px; font-weight: 600; cursor: pointer;
+            color: var(--text); padding: 8px 14px; border-radius: 14px;
+            font-size: 11px; font-weight: 600; cursor: pointer; backdrop-filter: blur(10px);
+            box-shadow: var(--card-shadow); transition: all 0.2s;
         }
         .btn-active { background: var(--accent); border-color: transparent; color: white; }
+        
+        .zoom-group { display: flex; background: var(--card); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--card-shadow); }
+        .zoom-group .btn { border: none; border-radius: 0; padding: 8px 14px; font-weight: 800; box-shadow: none; }
+        .zoom-group .btn:first-child { border-right: 1px solid var(--border); }
 
-        /* Основная сетка */
+        /* Главная сетка рабочих зон */
         .dashboard {
-            display: grid; grid-template-columns: 1fr 1.5fr 1fr;
-            gap: 20px; height: calc(100% - 110px); align-items: center;
+            flex: 1; display: grid; grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 24px; align-items: center; min-height: 0; /* Важно для предотвращения распирания */
         }
 
-        /* Шкалы */
+        /* Приборы */
         .gauge-container { position: relative; width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; }
         .gauge-svg { width: 100%; height: 100%; transform: rotate(-10deg); }
         
+        .neon-speed { filter: var(--neon-glow); transition: filter 0.3s; }
+        .neon-tach { filter: var(--neon-rpm); transition: filter 0.3s; }
+        .shift-flash { filter: drop-shadow(0 0 30px #ff3b30) brightness(1.6) !important; }
+
+        /* Мини-карта */
         .map-hole {
             position: absolute; width: 72%; height: 72%; border-radius: 50%;
             overflow: hidden; z-index: 1; border: 2px solid var(--border);
         }
 
+        /* Исправленный цифровой блок скорости (Равномерная тень) */
         .central-display {
             position: absolute; z-index: 10; text-align: center;
-            background: var(--card); padding: 12px 20px; border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border);
+            background: var(--card);
+            padding: 14px 22px; border-radius: 22px;
+            box-shadow: var(--speedo-shadow); border: 1px solid var(--border);
+            backdrop-filter: blur(15px);
+            transition: box-shadow 0.3s, background 0.3s;
         }
-        .val { font-size: 54px; font-weight: 800; line-height: 1; }
-        .unit { font-size: 12px; color: var(--text-dim); font-weight: 700; margin-top: 4px; }
+        
+        .gear-overlay-display {
+            position: absolute; z-index: 10; text-align: center; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; transition: transform 0.1s;
+        }
+        .gear-val {
+            font-size: clamp(56px, 7.5vh, 76px); font-weight: 900; line-height: 1;
+            color: var(--accent); text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            transition: color 0.3s;
+        }
+        body[data-mode="sport"] .gear-val { color: #ffffff; text-shadow: 0 0 15px #ff3b30; }
+        
+        .gear-unit { font-size: 10px; color: #ffffff; font-weight: 800; letter-spacing: 1px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
 
-        /* Центральная колонка (Выравнивание) */
-        .center-stack { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 440px; margin: 0 auto; }
+        .val { font-size: clamp(42px, 5.5vh, 56px); font-weight: 900; line-height: 1; }
+        .unit { font-size: 11px; color: var(--text-dim); font-weight: 700; margin-top: 3px; letter-spacing: 0.5px; }
 
+        /* Центр (Упорядоченная структура без нахлестов) */
+        .center-stack { 
+            display: flex; flex-direction: column; gap: 12px; width: 100%; height: 100%; 
+            justify-content: center; min-height: 0; 
+        }
+        
         .card {
             background: var(--card); border: 1px solid var(--border);
-            border-radius: 24px; padding: 16px; 
+            border-radius: 20px; padding: 14px 18px; 
             display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            backdrop-filter: blur(12px); box-shadow: var(--card-shadow);
+            flex-shrink: 0; /* Элементы не сжимаются */
         }
 
         /* ADAS */
-        .adas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .adas-grid { display: flex; gap: 12px; align-items: center; }
         .sign-circle {
-            width: 70px; height: 70px; background: white; border-radius: 50%;
-            border: 6px solid var(--red); display: flex; align-items: center; justify-content: center;
-            color: black; font-size: 30px; font-weight: 900; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            width: 52px; height: 52px; background: white; border-radius: 50%;
+            border: 5px solid #ff3b30; display: flex; align-items: center; justify-content: center;
+            color: black; font-size: 22px; font-weight: 900; box-shadow: 0 3px 8px rgba(0,0,0,0.15);
         }
         .gps-status {
-            width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--accent);
+            width: 52px; height: 52px; border-radius: 50%; border: 2.5px solid var(--accent);
             display: flex; align-items: center; justify-content: center;
-            color: var(--accent); font-size: 12px; font-weight: 800; text-align: center;
+            color: var(--accent); font-size: 10px; font-weight: 800; text-align: center; transition: all 0.3s;
         }
 
-        /* Датчики */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .stat-item {
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 12px;
+        /* ИЗОЛИРОВАННЫЙ СКРОЛЛ-БЛОК ДЛЯ OBDII (Решение проблемы IMG_9489.jpeg) */
+        .obd-scroll-box {
+            display: none; /* Переключается скриптом */
+            flex: 1; /* Занимает строго оставшееся доступное место */
+            min-height: 0; /* Разрешает внутренний скролл во флекс-боксе */
+            overflow-y: auto;
+            padding-right: 2px;
         }
-        .stat-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; }
-        .stat-val { font-size: 20px; font-weight: 700; margin-top: 4px; }
+        /* Сетка внутри скролла */
+        .obd-internal-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        /* Скрытие скроллбара для чистоты дизайна */
+        .obd-scroll-box::-webkit-scrollbar { width: 0px; display: none; }
 
-        /* Футер */
+        .stat-item { 
+            background: var(--card); border: 1px solid var(--border); 
+            border-radius: 16px; padding: 12px; backdrop-filter: blur(10px); 
+            box-shadow: var(--card-shadow); 
+        }
+        .stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; font-weight: 800; letter-spacing: 0.3px; }
+        .stat-val { font-size: 18px; font-weight: 700; margin-top: 3px; }
+
+        /* Постоянный статичный футер */
         .footer {
-            height: 40px; display: flex; justify-content: space-between;
-            align-items: center; font-size: 13px; font-weight: 600; color: var(--text-dim);
-            border-top: 1px solid var(--border);
+            height: 35px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 12px; font-weight: 600; color: var(--text-dim);
+            border-top: 1px solid var(--border); flex-shrink: 0; margin-top: auto;
         }
-
-        /* Анимация переключения темы */
-        .theme-transition { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
-<body data-theme="dark">
+<body data-theme="dark" data-mode="comfort">
 
-<div class="header">
-    <div class="logo">EGORKIN<span>DEV</span></div>
-    <div class="controls">
-        <button class="btn" id="themeBtn" onclick="toggleTheme()">Ночь</button>
-        <button class="btn" id="connectBtn">OBDII</button>
-        <button class="btn" onclick="forceFullscreen()">Экран</button>
-    </div>
-    <div id="clock" style="font-weight: 700; font-size: 18px;">19:00</div>
-</div>
+<!-- Слой 1: Живой бэкграунд -->
+<div id="bg-map-layer"></div>
 
-<div class="dashboard">
-    <div class="gauge-container">
-        <svg class="gauge-svg" viewBox="0 0 200 200">
-            <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="6" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
-            <circle id="speedFill" cx="100" cy="100" r="85" fill="none" stroke="var(--accent)" stroke-width="8" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: 0.3s"/>
-        </svg>
-        <div class="central-display">
-            <div class="val" id="speedNum">0</div>
-            <div class="unit">КМ/Ч</div>
-        </div>
-    </div>
+<!-- Слой 2: Основная UI консоль с новым круговым контуром -->
+<div class="ui-scale-container" id="globalUiWrapper">
 
-    <div class="center-stack">
-        <div class="card" style="height: 100px;">
-            <div>
-                <div style="font-size: 11px; color: var(--yandex); font-weight: 800;">ЯНДЕКС МУЗЫКА</div>
-                <div style="font-size: 18px; font-weight: 700;">Мой Плейлист Авто</div>
+    <!-- Меню -->
+    <div class="header" id="topHeader">
+        <div class="logo">Car<span>Play</span> PRO</div>
+        
+        <div class="controls">
+            <!-- Блок выбора режимов (Эко, Комфорт, Спорт) -->
+            <div class="mode-selector">
+                <button class="mode-tab" data-m="eco" onclick="changeDriveMode('eco', event)">Eco</button>
+                <button class="mode-tab active" data-m="comfort" onclick="changeDriveMode('comfort', event)">Comfort</button>
+                <button class="mode-tab" data-m="sport" onclick="changeDriveMode('sport', event)">Sport</button>
             </div>
-            <button class="btn btn-active" onclick="window.open('https://music.yandex.ru')">Включить</button>
-        </div>
 
-        <div class="card">
-            <div style="font-size: 12px; font-weight: 800; color: var(--text-dim);">СИСТЕМА<br>ADAS</div>
-            <div class="adas-grid">
-                <div class="sign-circle" id="signSpeed">60</div>
-                <div class="gps-status" id="gpsStatus">GPS<br>READY</div>
+            <div class="zoom-group">
+                <button class="btn" onclick="globalScaleUp(event)">+</button>
+                <button class="btn" onclick="globalScaleDown(event)">-</button>
             </div>
+            <button class="btn" id="themeBtn" onclick="toggleTheme(event)">Ночь</button>
+            <button class="btn" id="connectBtn" onclick="toggleObdBlock(event)">OBDII</button>
+            <button class="btn" onclick="toggleWebFullscreen(event)">Экран</button>
         </div>
-
-        <div class="stats-grid">
-            <div class="stat-item">
-                <div class="stat-label">Охлаждение</div>
-                <div class="stat-val"><span id="coolant">90</span>°C</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Вольтаж</div>
-                <div class="stat-val" style="color: var(--accent);"><span id="volt">14.1</span>V</div>
-            </div>
-        </div>
+        <div id="clock" style="font-weight: 700; font-size: 16px; min-width: 45px; text-align: right;">21:40</div>
     </div>
 
-    <div class="gauge-container">
-        <div id="map" class="map-hole"></div>
-        <svg class="gauge-svg" viewBox="0 0 200 200" style="z-index: 5; pointer-events: none;">
-            <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="6" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
-            <circle id="rpmFill" cx="100" cy="100" r="85" fill="none" stroke="var(--red)" stroke-width="8" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: 0.3s"/>
-        </svg>
-        <div class="central-display" style="background: rgba(0,0,0,0.85);">
-            <div class="val" id="gearNum" style="color: var(--red);">P</div>
-            <div class="unit">ПЕРЕДАЧА</div>
+    <!-- Панель приборов -->
+    <div class="dashboard">
+        
+        <!-- Левый Спидометр -->
+        <div class="gauge-container">
+            <svg class="gauge-svg neon-speed" id="speedSvgRing" viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4" stroke-dasharray="2 6" transform="rotate(140 100 100)"/>
+                <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="5" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
+                <circle id="speedFill" cx="100" cy="100" r="85" fill="none" stroke="var(--accent)" stroke-width="7" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: stroke-dasharray 0.3s ease, stroke 0.3s"/>
+            </svg>
+            <!-- Блок индикации с обновленной мягкой тенью -->
+            <div class="central-display">
+                <div class="val" id="speedNum">0</div>
+                <div class="unit">КМ/Ч</div>
+            </div>
+        </div>
+
+        <!-- Центральный стек -->
+        <div class="center-stack">
+            <!-- Музыка -->
+            <div class="card" style="height: 68px;">
+                <div>
+                    <div style="font-size: 9px; color: var(--yandex); font-weight: 800; letter-spacing: 0.5px;">ЯНДЕКС МУЗЫКА</div>
+                    <div style="font-size: 15px; font-weight: 700; margin-top: 1px;">Мой Плейлист Авто</div>
+                </div>
+                <button class="btn btn-active" style="background: var(--accent);" onclick="window.open('https://music.yandex.ru', '_blank')">Включить</button>
+            </div>
+
+            <!-- ADAS -->
+            <div class="card" style="height: 68px;">
+                <div style="font-size: 10px; font-weight: 800; color: var(--text-dim); line-height: 1.2;">СИСТЕМА<br>ADAS</div>
+                <div class="adas-grid">
+                    <div class="sign-circle" id="signSpeed">60</div>
+                    <div class="gps-status" id="gpsStatus">GPS<br>LIVE</div>
+                </div>
+            </div>
+
+            <!-- ИЗОЛИРОВАННАЯ ЗОНА OBDII (Внутренний независимый скролл) -->
+            <div class="obd-scroll-box" id="obdScrollContainer">
+                <div class="obd-internal-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Охлаждение</div>
+                        <div class="stat-val" style="color: var(--text);"><span id="coolant">90</span>°C</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Вольтаж</div>
+                        <div class="stat-val" style="color: var(--accent);"><span id="volt">14.1</span>V</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Масло</div>
+                        <div class="stat-val"><span id="oil">94</span>°C</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Расход</div>
+                        <div class="stat-val"><span>8.4</span>л</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Обороты</div>
+                        <div class="stat-val"><span id="obdRpm">800</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Дроссель</div>
+                        <div class="stat-val">14%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правый Тахометр + Карта -->
+        <div class="gauge-container">
+            <div id="mapGaugeSlot" class="map-hole"></div>
+            <svg class="gauge-svg neon-tach" id="tachSvgRing" viewBox="0 0 200 200" style="z-index: 5; pointer-events: none;">
+                <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4" stroke-dasharray="1 5" transform="rotate(140 100 100)"/>
+                <circle cx="100" cy="100" r="85" fill="none" stroke="var(--border)" stroke-width="5" stroke-dasharray="400 600" stroke-linecap="round" transform="rotate(140 100 100)"/>
+                <circle id="rpmFill" cx="100" cy="100" r="85" fill="none" stroke="var(--red)" stroke-width="7" stroke-dasharray="0 600" stroke-linecap="round" transform="rotate(140 100 100)" style="transition: stroke-dasharray 0.1s linear"/>
+            </svg>
+            <div class="gear-overlay-display" id="gearContainer">
+                <div class="gear-val" id="gearNum">P</div>
+                <div class="gear-unit">ПЕРЕДАЧА</div>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="footer">
-    <div>Пробег: 142,833 км</div>
-    <div id="trip">Поездка: 0.0 км</div>
-    <div>Запас хода: 446 км</div>
+    <!-- Зафиксированный нижний инфо-бар (Ничего не перекрывает) -->
+    <div class="footer">
+        <div>Пробег: 142,833 км</div>
+        <div id="trip">Поездка: 0.0 км</div>
+        <div>Запас хода: 446 км</div>
+    </div>
 </div>
 
 <script>
-    let isDay = false;
-    let speed = 0;
-    let rpm = 0;
+    let isDayMode = false;
+    let isObdActive = false; 
+    let currentSpeedKmh = 0;
+    let currentRpm = 800;
+    let lastGear = 'P';
+    let globalPageScale = 1.0; 
+    
+    let mapBgInstance, mapGaugeInstance;
+    let globalGpsMarkerBg, globalGpsMarkerGauge;
+    let hideControlsTimeout;
 
-    function toggleTheme() {
-        isDay = !isDay;
-        document.body.setAttribute('data-theme', isDay ? 'day' : 'dark');
-        document.getElementById('themeBtn').innerText = isDay ? 'День' : 'Ночь';
-        // Обновляем карту под тему
-        if(map) {
-            map.remove();
-            initMap();
-        }
+    function resetHideControlsTimer() {
+        const header = document.getElementById('topHeader');
+        header.classList.remove('hidden');
+        clearTimeout(hideControlsTimeout);
+        hideControlsTimeout = setTimeout(() => {
+            header.classList.add('hidden');
+        }, 4000);
+    }
+    window.addEventListener('click', resetHideControlsTimer);
+    window.addEventListener('touchstart', resetHideControlsTimer);
+
+    // Управление режимами движения (Drive Modes)
+    function changeDriveMode(modeName, event) {
+        if(event) event.stopPropagation();
+        document.body.setAttribute('data-mode', modeName);
+        
+        // Переключение визуальных табов в селекторе
+        document.querySelectorAll('.mode-tab').forEach(btn => {
+            if(btn.getAttribute('data-m') === modeName) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
     }
 
-    function forceFullscreen() {
-        const doc = window.document;
-        const docEl = doc.documentElement;
-        const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+    // Полноэкранный режим масштабирования консоли
+    function applyGlobalScale() {
+        const wrapper = document.getElementById('globalUiWrapper');
+        wrapper.style.transform = `scale(${globalPageScale})`;
+        setTimeout(() => {
+            if(mapBgInstance) mapBgInstance.invalidateSize();
+            if(mapGaugeInstance) mapGaugeInstance.invalidateSize();
+        }, 150);
+    }
+
+    function globalScaleUp(e) { e.stopPropagation(); if(globalPageScale < 1.25) { globalPageScale += 0.05; applyGlobalScale(); } }
+    function globalScaleDown(e) { e.stopPropagation(); if(globalPageScale > 0.75) { globalPageScale -= 0.05; applyGlobalScale(); } }
+
+    // Безопасное открытие OBD без разрушения сетки
+    function toggleObdBlock(e) {
+        e.stopPropagation();
+        isObdActive = !isObdActive;
+        const btn = document.getElementById('connectBtn');
+        const obdBox = document.getElementById('obdScrollContainer');
         
-        if (requestFullScreen) {
-            requestFullScreen.call(docEl);
+        if(isObdActive) {
+            obdBox.style.display = 'block';
+            btn.classList.add('btn-active');
         } else {
-            // Если API заблокировано, просто скрываем лишнее через CSS-класс
-            alert("Нажмите 'Поделиться' -> 'На экран Домой' для полного погружения");
+            obdBox.style.display = 'none';
+            btn.classList.remove('btn-active');
         }
     }
 
-    let map;
-    function initMap() {
-        const style = isDay ? 'voyager' : 'dark_all';
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([55.75, 37.61], 15);
-        L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`).addTo(map);
+    function toggleTheme(e) {
+        e.stopPropagation();
+        isDayMode = !isDayMode;
+        document.body.setAttribute('data-theme', isDayMode ? 'day' : 'dark');
+        document.getElementById('themeBtn').innerText = isDayMode ? 'День' : 'Ночь';
         
+        const styleName = isDayMode ? 'voyager' : 'dark_all';
+        mapBgInstance.eachLayer(layer => mapBgInstance.removeLayer(layer));
+        mapGaugeInstance.eachLayer(layer => mapGaugeInstance.removeLayer(layer));
+        
+        L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${styleName}/{z}/{x}/{y}{r}.png`).addTo(mapBgInstance);
+        L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${styleName}/{z}/{x}/{y}{r}.png`).addTo(mapGaugeInstance);
+    }
+
+    function toggleWebFullscreen(e) {
+        e.stopPropagation();
+        const docEl = document.documentElement;
+        if (!document.fullscreenElement) {
+            (docEl.requestFullscreen || docEl.webkitRequestFullscreen || (() => {})).call(docEl);
+        } else {
+            (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+        }
+    }
+
+    function calculateEngineMetrics(speed) {
+        if (speed < 1.5) return { gear: 'P', rpm: 800 };
+        let gear = 1, rpm = 800;
+        if (speed >= 1.5 && speed < 25) { gear = 1; rpm = 1000 + ((speed - 1.5) / 23.5) * 2600; } 
+        else if (speed >= 25 && speed < 48) { gear = 2; rpm = 1400 + ((speed - 25) / 23) * 2500; } 
+        else if (speed >= 48 && speed < 75) { gear = 3; rpm = 1500 + ((speed - 48) / 27) * 2400; } 
+        else if (speed >= 75 && speed < 105) { gear = 4; rpm = 1700 + ((speed - 75) / 30) * 2300; } 
+        else if (speed >= 105 && speed < 140) { gear = 5; rpm = 1900 + ((speed - 105) / 35) * 2300; } 
+        else { gear = 6; rpm = 2100 + ((speed - 140) / 80) * 2800; }
+        if (rpm > 6800) rpm = 6800;
+        return { gear: gear, rpm: rpm };
+    }
+
+    function initDualMapSystem() {
+        const style = isDayMode ? 'voyager' : 'dark_all';
+        const moscowCenter = [55.7539, 37.6208]; 
+
+        mapBgInstance = L.map('bg-map-layer', { 
+            zoomControl: false, attributionControl: false,
+            dragging: false, touchZoom: false, scrollWheelZoom: false, 
+            doubleClickZoom: false, boxZoom: false
+        }).setView(moscowCenter, 16);
+        L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`).addTo(mapBgInstance);
+
+        mapGaugeInstance = L.map('mapGaugeSlot', { zoomControl: false, attributionControl: false }).setView(moscowCenter, 16);
+        L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`).addTo(mapGaugeInstance);
+
+        // Синхронизация перемещения
+        mapGaugeInstance.on('move', () => {
+            if (mapBgInstance) {
+                mapBgInstance.setView(mapGaugeInstance.getCenter(), mapGaugeInstance.getZoom(), { animate: false });
+            }
+        });
+
+        const navIcon = L.divIcon({
+            className: 'nav-marker',
+            html: `<svg width="24" height="24" viewBox="0 0 24 24" style="fill: var(--accent); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>`,
+            iconSize: [24, 24], iconAnchor: [12, 12]
+        });
+
+        globalGpsMarkerBg = L.marker(moscowCenter, { icon: navIcon }).addTo(mapBgInstance);
+        globalGpsMarkerGauge = L.marker(moscowCenter, { icon: navIcon }).addTo(mapGaugeInstance);
+
         if ("geolocation" in navigator) {
-            navigator.geolocation.watchPosition(p => {
-                map.setView([p.coords.latitude, p.coords.longitude], 16);
-                updateSigns(p.coords.speed);
-            });
+            navigator.geolocation.watchPosition(position => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const pArray = [lat, lng];
+
+                if (!mapGaugeInstance.dragging.moving()) {
+                    mapBgInstance.setView(pArray);
+                    mapGaugeInstance.setView(pArray);
+                }
+                globalGpsMarkerBg.setLatLng(pArray);
+                globalGpsMarkerGauge.setLatLng(pArray);
+
+                if (position.coords.speed !== null && position.coords.speed > 0) {
+                    currentSpeedKmh = position.coords.speed * 3.6;
+                    document.getElementById('gpsStatus').innerHTML = "GPS<br>LIVE";
+                    document.getElementById('gpsStatus').style.borderColor = "var(--accent)";
+                }
+                let limit = 60;
+                if (currentSpeedKmh > 82) limit = 110; else if (currentSpeedKmh > 52) limit = 90;
+                document.getElementById('signSpeed').innerText = limit;
+            }, err => {
+                document.getElementById('gpsStatus').innerHTML = "NO<br>GPS";
+                document.getElementById('gpsStatus').style.borderColor = "#ff3b30";
+            }, { enableHighAccuracy: true });
         }
     }
 
-    function updateSigns(s) {
-        let limit = 60;
-        if (speed > 85) limit = 110;
-        else if (speed > 55) limit = 90;
-        document.getElementById('signSpeed').innerText = limit;
+    function triggerLexusShiftFlash() {
+        const speedRing = document.getElementById('speedSvgRing');
+        const tachRing = document.getElementById('tachSvgRing');
+        const gearText = document.getElementById('gearContainer');
+
+        speedRing.classList.add('shift-flash');
+        tachRing.classList.add('shift-flash');
+        gearText.style.transform = "scale(1.18)";
+
+        setTimeout(() => {
+            speedRing.classList.remove('shift-flash');
+            tachRing.classList.remove('shift-flash');
+            gearText.style.transform = "scale(1.0)";
+        }, 220);
     }
 
-    function engine() {
-        // Симуляция для теста (если OBD не подключен)
-        const t = Date.now();
-        speed = 60 + Math.sin(t/2000) * 40;
-        rpm = 2000 + Math.abs(Math.sin(t/1000)) * 3000;
+    function liveRenderEngine() {
+        // Симуляция движения для демонстрации, если девайс статичен
+        if (currentSpeedKmh === 0) {
+            currentSpeedKmh = 72 + Math.sin(Date.now() / 4000) * 65;
+        }
 
-        // Отрисовка Speed
-        const sDash = (speed / 220) * 400;
-        document.getElementById('speedFill').style.strokeDasharray = `${sDash} 600`;
-        document.getElementById('speedNum').innerText = Math.round(speed);
+        const engineData = calculateEngineMetrics(currentSpeedKmh);
+        currentRpm = engineData.rpm;
 
-        // Отрисовка RPM
-        const rDash = (rpm / 8000) * 400;
-        document.getElementById('rpmFill').style.strokeDasharray = `${rDash} 600`;
-        
-        // Передачи
-        const gear = speed < 5 ? 'P' : Math.ceil(speed / 25);
-        document.getElementById('gearNum').innerText = gear;
+        if (engineData.gear !== lastGear) {
+            lastGear = engineData.gear;
+            triggerLexusShiftFlash();
+        }
 
-        // Часы
+        const speedOffset = (currentSpeedKmh / 220) * 400;
+        document.getElementById('speedFill').style.strokeDasharray = `${speedOffset} 600`;
+        document.getElementById('speedNum').innerText = Math.round(currentSpeedKmh);
+
+        const rpmOffset = (currentRpm / 8000) * 400;
+        document.getElementById('rpmFill').style.strokeDasharray = `${rpmOffset} 600`;
+        document.getElementById('gearNum').innerText = engineData.gear;
+        document.getElementById('obdRpm').innerText = Math.round(currentRpm);
+
         document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-        requestAnimationFrame(engine);
+        requestAnimationFrame(liveRenderEngine);
     }
 
     window.onload = () => {
-        initMap();
-        engine();
+        initDualMapSystem();
+        liveRenderEngine();
+        resetHideControlsTimer();
     };
 </script>
 </body>
