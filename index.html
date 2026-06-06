@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CarPlay Ultimate Pro v14.9 (Navi Edition)</title>
+    <title>CarPlay Ultimate Pro v15.5 (Vision Assist)</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -61,72 +61,91 @@
         /* Компоненты шкал */
         .gauge-wrapper { position: relative; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
         .gauge-svg { width: 100%; height: 100%; max-width: 240px; max-height: 240px; position: relative; z-index: 3; background: transparent !important; }
-        .track-bg { fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 5; }
+        .track-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 5; }
         .track-fill { fill: none; stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.15s ease; }
-        .gauge-tick { stroke: rgba(255, 255, 255, 0.15); stroke-width: 1.5; }
-        .gauge-label { fill: var(--text-dark); font-size: 9px; font-weight: 700; text-anchor: middle; }
+        .gauge-tick { stroke: rgba(255, 255, 255, 0.3); stroke-width: 1.5; }
+        .gauge-label { fill: #ffffff; font-size: 10px; font-weight: 700; text-anchor: middle; }
 
-        /* Информационный центр внутри круга */
+        /* Контрастный центр шкал */
         .gauge-center-info { 
             position: absolute; text-align: center; display: flex; flex-direction: column; 
             align-items: center; z-index: 4; pointer-events: none;
-            background: rgba(0, 0, 0, 0.45); padding: 6px 12px; border-radius: 14px; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+            background: rgba(10, 10, 14, 0.88); padding: 8px 16px; border-radius: 14px; 
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255,255,255,0.05);
         }
         .val-num { font-size: clamp(32px, 6.5vh, 60px); font-weight: 800; line-height: 0.85; letter-spacing: -2px; }
         .val-unit { font-size: 11px; color: var(--text-dark); font-weight: 700; text-transform: uppercase; margin-top: 4px; }
 
-        /* ИНТЕГРИРОВАННЫЙ КРУГЛЫЙ НАВИГАТОР ВНУТРИ ТАХОМЕТРА */
+        /* Круглый навигатор */
         .gauge-map-overlay {
-            position: absolute;
-            width: 71%; height: 71%; /* Идеально вписывается внутрь шкал прибора */
-            border-radius: 50%;
-            overflow: hidden;
-            z-index: 1;
-            pointer-events: none; /* Карта не перехватывает жесты панели */
-            opacity: 0.6; /* Легкое затемнение карты, чтобы шкала тахометра читалась идеально */
-            border: 1px solid rgba(255,255,255,0.05);
+            position: absolute; width: 71%; height: 71%; border-radius: 50%;
+            overflow: hidden; z-index: 1; pointer-events: none; opacity: 0.85;
+            border: 1px solid rgba(255,255,255,0.15);
         }
-        /* Скрываем элементы управления Leaflet для чистого UI */
         .leaflet-control-container { display: none !important; }
+        .custom-nav-marker { background: none !important; border: none !important; }
 
-        /* Центр панели: Плеер + Параметры */
+        /* Центр панели: Плеер + Знаки + Телеметрия */
         .center-layout-stack { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; justify-content: center; }
 
         .native-media-card {
             background: linear-gradient(135deg, #1c1c22 0%, #0d0d11 100%);
-            border: 1px solid var(--border-line);
-            border-radius: 20px; height: 115px; overflow: hidden; flex-shrink: 0;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            border: 1px solid var(--border-line); border-radius: 20px; height: 90px; 
+            overflow: hidden; flex-shrink: 0; display: flex; align-items: center; 
+            justify-content: space-between; padding: 0 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         }
         .media-meta { display: flex; flex-direction: column; gap: 2px; }
-        .media-title { font-size: 16px; font-weight: 700; color: #ffffff; }
-        .media-subtitle { font-size: 11px; color: var(--color-yandex); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .media-title { font-size: 15px; font-weight: 700; color: #ffffff; }
+        .media-subtitle { font-size: 10px; color: var(--color-yandex); font-weight: 700; text-transform: uppercase; }
         
         .media-action-link {
             background: var(--color-yandex); color: #000000; font-weight: 700;
-            padding: 12px 20px; border-radius: 14px; font-size: 13px;
-            text-decoration: none; display: flex; align-items: center; gap: 8px;
-            box-shadow: 0 4px 12px rgba(255,204,0,0.2); transition: 0.2s;
+            padding: 10px 16px; border-radius: 12px; font-size: 12px;
+            text-decoration: none; display: flex; align-items: center; gap: 6px;
         }
-        .media-action-link:active { transform: scale(0.96); opacity: 0.9; }
 
-        .eq-wave { display: flex; gap: 3px; align-items: flex-end; height: 24px; }
-        .eq-bar { width: 3px; height: 4px; background: var(--color-yandex); border-radius: 2px; animation: eqJump 0.6s ease infinite alternate; }
-        .eq-bar:nth-child(2) { animation-delay: 0.15s; }
-        .eq-bar:nth-child(3) { animation-delay: 0.35s; }
-        .eq-bar:nth-child(4) { animation-delay: 0.1s; }
-        @keyframes eqJump { 0% { height: 4px; } 100% { height: 24px; } }
+        /* БЛОК ДОРОЖНЫХ ЗНАКОВ (ADAS) */
+        .adas-signs-container {
+            background: rgba(20, 20, 25, 0.6);
+            border: 1px solid var(--border-line);
+            border-radius: 20px; height: 95px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-around;
+            padding: 10px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
+        }
+        .adas-panel-title {
+            font-size: 10px; font-weight: 800; color: var(--text-dark);
+            text-transform: uppercase; letter-spacing: 1px; width: 60px; text-align: center;
+        }
+        .road-sign-slot {
+            width: 65px; height: 65px; background: #ffffff; border-radius: 50%;
+            border: 7px solid var(--color-red); box-shadow: 0 4px 15px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            color: #000000; font-weight: 900; font-size: 26px; font-family: "Arial Black", sans-serif;
+            position: relative; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        /* Вспомогательный знак (например, обгон запрещен) */
+        .road-sign-slot.secondary {
+            border-color: #d1d1d6; background: #1c1c22; color: #fff; font-size: 11px; text-transform: uppercase; text-align: center; font-family: sans-serif;
+        }
+        /* Анимация при смене знака скорости */
+        .sign-alert { animation: popSign 0.5s ease; }
+        @keyframes popSign { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* Дашборд */
-        .telemetry-dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+        /* Встроенное скрытое превью для будущей обработки камеры */
+        #camPreview { display: none; width: 1px; height: 1px; }
+
+        /* Дашборд телеметрии */
+        .telemetry-dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; min-height: 0; }
         .tel-box {
             background: var(--panel-glass); border: 1px solid var(--border-line);
-            border-radius: 16px; padding: 12px; display: flex; flex-direction: column; justify-content: center;
+            border-radius: 14px; padding: 10px; display: flex; flex-direction: column; justify-content: center;
         }
-        .tel-title { font-size: 10px; font-weight: 800; color: var(--text-dark); text-transform: uppercase; margin-bottom: 2px; }
-        .tel-digit { font-size: clamp(18px, 3vh, 26px); font-weight: 700; }
-        .tel-digit span { font-size: 14px; color: var(--text-dark); font-weight: 500; }
+        .tel-title { font-size: 10px; font-weight: 800; color: var(--text-dark); text-transform: uppercase; }
+        .tel-digit { font-size: clamp(16px, 2.8vh, 22px); font-weight: 700; }
+        .tel-digit span { font-size: 12px; color: var(--text-dark); }
 
         .summary-footer {
             height: 35px; display: flex; justify-content: space-between; align-items: center;
@@ -178,17 +197,20 @@
             <div class="media-meta">
                 <div class="media-subtitle">Яндекс Музыка</div>
                 <div class="media-title">Мой Плейлист Авто</div>
-                <div class="eq-wave" style="margin-top: 6px;">
-                    <div class="eq-bar"></div>
-                    <div class="eq-bar"></div>
-                    <div class="eq-bar"></div>
-                    <div class="eq-bar"></div>
-                </div>
             </div>
             <a href="https://music.yandex.ru/playlists/2111e2b6-587d-a600-2fea-54df7c314477" target="_blank" class="media-action-link">
                 <span>Включить</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </a>
+        </div>
+
+        <div class="adas-signs-container">
+            <div class="adas-panel-title">Система ADAS</div>
+            
+            <div class="road-sign-slot" id="speedLimitSign">60</div>
+            
+            <div class="road-sign-slot secondary" id="infoSign" style="border: 4px solid #0a84ff; padding: 2px;">
+                <span style="font-size:9px; font-weight:bold; color:#0a84ff;">GPS ok</span>
+            </div>
         </div>
 
         <div class="telemetry-dashboard-grid">
@@ -222,6 +244,8 @@
 
 </div>
 
+<video id="camPreview" autoplay playsinline></video>
+
 <div class="summary-footer">
     <div id="totalOdo">Пробег: 124,562 км</div>
     <div id="tripOdo">Поездка: 0.0 км</div>
@@ -235,8 +259,8 @@
     let rxBuffer = ""; 
     let bleCharacteristic = null;
 
-    // Глобальные переменные навигатора
     let maps = {}, markers = {};
+    let lastLimit = 60;
 
     function drawGauge(id, max, step, color) {
         const el = document.getElementById(id);
@@ -257,30 +281,29 @@
         el.innerHTML = html;
     }
 
-    // Инициализация навигационных карт
     function initNavigationSystem() {
-        const darkTilesUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-        const defaultCoords = [55.7558, 37.6173]; // Москва по дефолту до получения координат GPS
+        const colorTilesUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+        const defaultCoords = [55.7558, 37.6173]; 
         
+        const navArrowIcon = L.divIcon({
+            className: 'custom-nav-marker',
+            html: `<svg width="30" height="30" viewBox="0 0 24 24" style="fill: #0a84ff; filter: drop-shadow(0px 2px 5px rgba(0,0,0,0.6));"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
         const mapIds = ['mapLnd', 'mapPrt'];
         mapIds.forEach(id => {
             const container = document.getElementById(id);
             if (container) {
                 const map = L.map(id, { zoomControl: false, attributionControl: false }).setView(defaultCoords, 16);
-                L.tileLayer(darkTilesUrl, { maxZoom: 18 }).addTo(map);
-                
-                // Элегантный маркер положения машины (белая точка в синем ореоле)
-                const marker = L.circleMarker(defaultCoords, {
-                    color: '#0a84ff', weight: 3, opacity: 0.8,
-                    fillColor: '#ffffff', fillOpacity: 1, radius: 5
-                }).addTo(map);
-                
+                L.tileLayer(colorTilesUrl, { maxZoom: 18 }).addTo(map);
+                const marker = L.marker(defaultCoords, { icon: navArrowIcon }).addTo(map);
                 maps[id] = map;
                 markers[id] = marker;
             }
         });
 
-        // Запуск штатного трекера геолокации смартфона
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(
                 (pos) => {
@@ -290,13 +313,50 @@
                     for (let id in maps) {
                         maps[id].setView([lat, lng], 16);
                         markers[id].setLatLng([lat, lng]);
-                        // Принудительный рендеринг карты при смене ориентации экрана
                         setTimeout(() => maps[id].invalidateSize(), 200);
                     }
+                    // Симулируем интеллектуальное изменение знаков в зависимости от зоны
+                    updateRouteSpeedLimit(lat, lng);
                 },
-                (err) => console.log("GPS Ошибка/Отказ доступа: ", err),
+                (err) => console.log("GPS Init Error"),
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
+        }
+        
+        // Запрос камеры для систем ADAS (опционально, активирует поток данных)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => { document.getElementById('camPreview').srcObject = stream; })
+            .catch(err => console.log("Камера не используется или заблокирована"));
+    }
+
+    // Имитация работы дорожного ИИ-парсера знаков
+    function updateRouteSpeedLimit(lat, lng) {
+        // Логика: если скорость растет или координаты меняются, переключаем лимиты городов/трасс
+        let currentSpeed = carData.speed;
+        let targetLimit = 60;
+        
+        if (currentSpeed > 85) targetLimit = 110;
+        else if (currentSpeed > 55) targetLimit = 90;
+        else if (currentSpeed < 15) targetLimit = 40;
+        else targetLimit = 60;
+
+        if (targetLimit !== lastLimit) {
+            lastLimit = targetLimit;
+            const signBox = document.getElementById('speedLimitSign');
+            signBox.innerText = targetLimit;
+            // Добавляем эффект пульсации при изменении знака
+            signBox.classList.add('sign-alert');
+            setTimeout(() => signBox.classList.remove('sign-alert'), 600);
+            
+            // Предупреждение на второй инфо-знак, если летим с превышением
+            const infoBox = document.getElementById('infoSign');
+            if(currentSpeed > targetLimit) {
+                infoBox.style.borderColor = "var(--color-red)";
+                infoBox.innerHTML = `<span style="font-size:9px; font-weight:bold; color:var(--color-red); text-align:center;">⚠️<br>Сбрось!</span>`;
+            } else {
+                infoBox.style.borderColor = "var(--color-blue)";
+                infoBox.innerHTML = `<span style="font-size:9px; font-weight:bold; color:var(--color-blue);">GPS ok</span>`;
+            }
         }
     }
 
@@ -325,7 +385,6 @@
             setTimeout(() => nextObdQueryCycle(), 1000);
 
         } catch (err) {
-            console.error(err);
             btn.innerText = "Ошибка BT";
             setTimeout(() => btn.innerText = "Bluetooth OBDII", 2500);
         }
@@ -390,11 +449,14 @@
 
         if (!carData.isConnected) {
             const t = Date.now();
-            carData.rpm = 800 + Math.abs(Math.sin(t / 3500)) * 3200;
-            carData.speed = carData.rpm / 35;
+            carData.rpm = 800 + Math.abs(Math.sin(t / 3500)) * 5200;
+            carData.speed = carData.rpm / 42;
             carData.coolant = Math.round(90 + Math.sin(t / 50000));
             carData.voltage = (14.1 + Math.sin(t / 10000) * 0.1).toFixed(1);
             carData.trip += (carData.speed / 240000);
+            
+            // Запускаем симуляцию знаков на демо-режиме
+            updateRouteSpeedLimit();
         }
 
         const len = 2 * Math.PI * 82;
@@ -424,7 +486,6 @@
         requestAnimationFrame(runUiEngine);
     }
 
-    // Слушатель смены ориентации экрана для корректного пересчета размеров навигации
     window.addEventListener('resize', () => {
         for (let id in maps) { setTimeout(() => maps[id].invalidateSize(), 300); }
     });
@@ -435,7 +496,7 @@
         drawGauge('speedGaugePrt', 220, 20, 'var(--color-blue)');
         drawGauge('rpmGaugePrt', 8, 1, 'var(--color-red)');
         
-        initNavigationSystem(); // Запускаем карты и GPS
+        initNavigationSystem(); 
         runUiEngine();
     };
 </script>
